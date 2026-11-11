@@ -108,14 +108,15 @@ ipcMain.handle('startup-path', () => {
 });
 
 ipcMain.handle('get-recent', () => readRecent());
+ipcMain.handle('app-version', () => app.getVersion());
 
 ipcMain.handle('open-dialog', async () => {
   const r = await dialog.showOpenDialog(win, {
     title: 'Open PDF',
     filters: [{ name: 'PDF files', extensions: ['pdf'] }],
-    properties: ['openFile'],
+    properties: ['openFile', 'multiSelections'],
   });
-  return r.canceled ? null : r.filePaths[0];
+  return r.canceled ? [] : r.filePaths;
 });
 
 ipcMain.handle('read-file', async (_e, p) => {

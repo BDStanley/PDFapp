@@ -3,7 +3,7 @@
 An easy PDF viewer and editor for Windows, with a Word-style ribbon.
 
 ## Run
-Double-click `PDFacil-1.0.0-portable.exe` (kept in C:/dropbox/Programs, not in this repo). No installation needed.
+Run `PDFacil.exe` in `C:/program files (by claude)/PDFacil` (the whole folder is the app; it is not stored in this repo). No installation needed, and it starts in about a second.
 Tip: right-click any PDF > Open with > Choose another app > browse to the exe, to open PDFs with PDFacil.
 
 ## Ribbon
@@ -11,6 +11,8 @@ Tip: right-click any PDF > Open with > Choose another app > browse to the exe, t
 - **Pages**: First/Previous/Next/Last, Go to page, Rotate left/right, Delete page
 - **Comment**: Select, Highlight, Text, Comment (sticky note), colors, font size, Remove
 - **View**: Zoom in/out, 100%, Fit width, Fit page, Search, Thumbnails
+- **Tabs**: open several PDFs at once; each gets a tab (Ctrl+Tab to switch, Ctrl+W or middle-click to close)
+- **About** (File tab or F1): designed by Uri Simonsohn, created with Claude Opus 5.5 (High), November 11, 2026
 
 ## Shortcuts
 | Keys | Action |
@@ -24,6 +26,9 @@ Tip: right-click any PDF > Open with > Choose another app > browse to the exe, t
 | V / H / T / N | Select / Highlight / Text / Comment tool |
 | Delete | Remove selected highlight, text or comment (or selected pages in the thumbnail bar) |
 | Esc | Finish editing, back to Select |
+| Ctrl+Tab / Ctrl+Shift+Tab | Next / previous file tab |
+| Ctrl+W | Close current tab |
+| F1 | About PDFacil |
 
 Highlights, text boxes and comments are saved as standard PDF annotations, so Acrobat, Edge and Chrome show them. Reopening a file in PDFacil makes them editable again.
 
@@ -32,7 +37,7 @@ Requires Node.js 20 or newer.
 ```
 npm install               # also copies pdf.js / pdf-lib into src/vendor
 npm start                 # run in development
-npm run dist              # build the exe in dist/, then copy it to C:/dropbox/Programs
+npm run dist              # build dist/win-unpacked, then copy it to C:/program files (by claude)/PDFacil
 ```
-To copy the exe somewhere else, set `PDFACIL_OUT` first, e.g. `set PDFACIL_OUT=D:\apps` (cmd).
-The exe is never stored in git (see `.gitignore`).
+Close PDFacil before `npm run dist` so the old files are not locked. To copy the app somewhere else, set `PDFACIL_OUT` first, e.g. `set PDFACIL_OUT=D:\apps` (cmd).
+The built app is never stored in git (see `.gitignore`).

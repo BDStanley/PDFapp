@@ -48,9 +48,15 @@
             <button class="big" data-cmd="recentMenu" data-icon="recent" title="Recently opened files">Recent&nbsp;▾</button>
             <div class="menu" id="recentMenu"></div>
           </div>
-          <button class="big" data-cmd="closeDoc" data-icon="close" title="Close document (Ctrl+W)">Close</button>
+          <button class="big" data-cmd="closeDoc" data-icon="close" title="Close this file (Ctrl+W)">Close</button>
         </div>
         <div class="glabel">Documents</div>
+      </div>
+      <div class="group">
+        <div class="items">
+          <button class="big" data-cmd="about" data-icon="info" title="About PDFacil (F1)">About</button>
+        </div>
+        <div class="glabel">Help</div>
       </div>
     </div>
 
@@ -143,6 +149,12 @@
     </div>
   </section>
 
+  <!-- Document tabs -->
+  <div id="tabbar" hidden>
+    <div id="tabList"></div>
+    <button id="tabAdd" data-cmd="open" title="Open another PDF (Ctrl+O)">+</button>
+  </div>
+
   <!-- Main area -->
   <main id="main">
     <aside id="sidebar" tabindex="0"><div id="thumbs"></div></aside>
@@ -183,6 +195,22 @@
     </div>
   </footer>
 
+  <div id="aboutDlg" hidden>
+    <div class="about-card" role="dialog" aria-labelledby="aboutTitle">
+      <button class="about-x" data-cmd="closeAbout" title="Close (Esc)">✕</button>
+      <img src="../build/icon.png" alt="" class="about-icon" />
+      <div class="logo" id="aboutTitle">PDF<span>acil</span></div>
+      <div class="about-ver">Version <span id="aboutVersion"></span></div>
+      <p class="about-tag">An easy PDF viewer and editor</p>
+      <dl class="about-facts">
+        <dt>Designed by</dt><dd>Uri Simonsohn</dd>
+        <dt>Created with</dt><dd>Claude Opus 5.5 (High)</dd>
+        <dt>Date</dt><dd>November 11, 2026</dd>
+      </dl>
+      <p class="about-credits">Built with Electron, PDF.js and pdf-lib.</p>
+      <button class="primary" data-cmd="closeAbout">OK</button>
+    </div>
+  </div>
   <div id="ctxMenu" class="menu" hidden></div>
   <div id="busy" hidden><div class="spinner"></div><div id="busyMsg">Working…</div></div>
 </body>

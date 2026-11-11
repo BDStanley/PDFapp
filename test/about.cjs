@@ -1,0 +1,20 @@
+const { _electron: electron } = require('playwright');
+const path = require('path');
+const root = path.join(__dirname, '..');
+(async () => {
+  const app = await electron.launch({ executablePath: require(path.join(root, 'node_modules', 'electron')), args: ['--no-sandbox', root] });
+  const win = await app.firstWindow();
+  const errors = [];
+  win.on('pageerror', (e) => errors.push(e.message));
+  win.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+  await win.waitForTimeout(1200);
+  await win.click('[data-cmd=about]');
+  await win.waitForTimeout(300);
+  await win.screenshot({ path: path.join(__dirname, 'out', '10-about.png') });
+  await win.keyboard.press('Escape');
+  console.log('hidden after Esc:', await win.$eval('#aboutDlg', (d) => d.hidden));
+  await win.keyboard.press('F1');
+  console.log('shown after F1:', !(await win.$eval('#aboutDlg', (d) => d.hidden)));
+  console.log('ERRORS:', errors.join('\n'));
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].destroy());
+})().catch((e) => { console.error('FAIL', e); process.exit(1); });

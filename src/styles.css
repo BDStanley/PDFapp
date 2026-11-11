@@ -207,3 +207,37 @@ button.primary:hover { background: var(--brand-dark); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 body.nodoc #ribbon button[data-needs-doc], body.nodoc #ribbon input, body.nodoc #ribbon select { opacity: .4; pointer-events: none; }
+
+/* about dialog */
+#aboutDlg { position: fixed; inset: 0; z-index: 1500; background: rgba(0,0,0,.35); display: grid; place-items: center; }
+#aboutDlg[hidden] { display: none; }
+.about-card { position: relative; background: #fff; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.3); padding: 30px 40px 26px; width: 380px; text-align: center; }
+.about-icon { width: 72px; height: 72px; }
+.about-card .logo { font-size: 32px; margin-top: 6px; }
+.about-ver { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.about-tag { color: #444; margin: 12px 0 16px; }
+.about-facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; text-align: left; margin: 0 auto 16px; width: max-content; }
+.about-facts dt { color: var(--muted); }
+.about-facts dd { margin: 0; font-weight: 600; }
+.about-credits { color: var(--muted); font-size: 11.5px; margin: 0 0 18px; }
+.about-x { position: absolute; top: 8px; right: 10px; border: 0; background: none; font-size: 15px; color: #777; cursor: pointer; width: 28px; height: 28px; border-radius: 4px; }
+.about-x:hover { background: #eee; }
+
+/* document tabs */
+#tabbar { display: flex; align-items: flex-end; height: 34px; flex: none; background: #e4e4e4; border-bottom: 1px solid var(--border); padding: 0 6px; gap: 4px; }
+#tabbar[hidden] { display: none; }
+#tabList { display: flex; align-items: flex-end; gap: 2px; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; min-width: 0; height: 100%; }
+#tabList::-webkit-scrollbar { display: none; }
+.doctab {
+  display: flex; align-items: center; gap: 6px; height: 29px; padding: 0 6px 0 12px; max-width: 240px; min-width: 110px; flex: none;
+  background: #d6d6d6; border: 1px solid #c4c4c4; border-bottom: 0; border-radius: 6px 6px 0 0; cursor: default; color: #444;
+}
+.doctab:hover { background: #dedede; }
+.doctab.active { background: #fff; color: var(--text); border-color: var(--border); position: relative; top: 1px; height: 30px; box-shadow: inset 0 2px 0 var(--brand); }
+.doctab .tname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doctab .tdot { color: var(--brand); font-size: 10px; display: none; }
+.doctab.dirty .tdot { display: inline; }
+.doctab .tclose { border: 0; background: none; width: 20px; height: 20px; border-radius: 4px; cursor: pointer; font-size: 11px; color: #666; flex: none; }
+.doctab .tclose:hover { background: rgba(0,0,0,.1); color: #000; }
+#tabAdd { width: 28px; height: 26px; margin-bottom: 2px; border: 0; background: none; border-radius: 4px; font-size: 18px; color: #555; cursor: pointer; flex: none; }
+#tabAdd:hover { background: rgba(0,0,0,.08); }

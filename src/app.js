@@ -52,12 +52,13 @@ const ICONS = {
   up: '<path d="m6 15 6-6 6 6"/>',
   down: '<path d="m6 9 6 6 6-6"/>',
   x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7.5v.01" stroke-width="2.4"/>',
 };
 const svg = (name) =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ''}</svg>`;
 $$('[data-icon]').forEach((b) => b.insertAdjacentHTML('afterbegin', svg(b.dataset.icon)));
 $$('#ribbon button[data-cmd]').forEach((b) => {
-  if (!['open', 'recentMenu'].includes(b.dataset.cmd)) b.dataset.needsDoc = '1';
+  if (!['open', 'recentMenu', 'about'].includes(b.dataset.cmd)) b.dataset.needsDoc = '1';
 });
 $$('#ribbon button[data-tool]').forEach((b) => (b.dataset.needsDoc = '1'));
 
@@ -123,7 +124,12 @@ const snapshot = () => JSON.stringify(S.model.pages);
 const isDirty = () => !!S.pdf && snapshot() !== S.savedSnap;
 function updateDirty() {
   const d = isDirty();
-  api.setDirty(d);
+  if (active >= 0 && tabs[active]) {
+    const was = tabs[active].dirty;
+    tabs[active].dirty = d;
+    if (was !== d) renderTabs();
+  }
+  api.setDirty(tabs.some((t) => t.dirty));
   api.setTitle(S.name ? `${d ? '• ' : ''}${S.name} - PDFacil${S.readOnly ? ' (read-only)' : ''}` : 'PDFacil');
   $('[data-cmd=undo]').disabled = !S.undo.length;
   $('[data-cmd=redo]').disabled = !S.redo.length;
@@ -146,6 +152,136 @@ function guardEdit() {
   return true;
 }
 
+// ---------------------------------------------------------------- tabs
+// Each open file is a tab. The active tab's document fields live in S; the others are
+// stashed in their tab record together with their page and thumbnail DOM.
+const DOC_KEYS = [
+  'path', 'name', 'baseBytes', 'readOnly', 'pdf', 'pdfPages', 'model', 'textCache', 'undo', 'redo',
+  'savedSnap', 'scale', 'fitMode', 'current', 'selPages', 'sel', 'pe', 'visible', 'search',
+];
+const blankDoc = () => ({
+  path: null, name: null, baseBytes: null, readOnly: false, pdf: null, pdfPages: [], model: { pages: [] },
+  textCache: new Map(), undo: [], redo: [], savedSnap: null, scale: 1, fitMode: 'width', current: 0,
+  selPages: new Set(), sel: null, pe: [], visible: new Set(), search: { q: '', results: [], idx: -1, byPage: new Map() },
+});
+const tabs = []; // { id, doc, pagesFrag, thumbsFrag, scrollTop, scrollLeft, thumbScroll, dirty }
+let active = -1;
+let tabSeq = 0;
+const tabbar = $('#tabbar');
+const tabList = $('#tabList');
+
+function stashActive() {
+  if (active < 0) return;
+  commitEdits();
+  const t = tabs[active];
+  t.dirty = isDirty();
+  for (const k of DOC_KEYS) t.doc[k] = S[k];
+  t.scrollTop = viewer.scrollTop;
+  t.scrollLeft = viewer.scrollLeft;
+  t.thumbScroll = sidebar.scrollTop;
+  t.searchOpen = !searchbar.hidden;
+  pageObserver.disconnect();
+  thumbObserver.disconnect();
+  thumbQueue.clear();
+  searchSeq++;
+  curTask?.cancel();
+  t.pagesFrag = document.createDocumentFragment();
+  t.pagesFrag.append(...pagesDiv.childNodes);
+  t.thumbsFrag = document.createDocumentFragment();
+  t.thumbsFrag.append(...thumbsDiv.childNodes);
+}
+
+function loadIntoS(doc) {
+  for (const k of DOC_KEYS) S[k] = doc[k];
+}
+
+function activate(i) {
+  if (i === active || !tabs[i]) return;
+  stashActive();
+  active = i;
+  const t = tabs[i];
+  loadIntoS(t.doc);
+  S.visible = new Set();
+  pagesDiv.append(t.pagesFrag);
+  thumbsDiv.append(t.thumbsFrag);
+  t.pagesFrag = t.thumbsFrag = null;
+  S.pe.forEach((p) => pageObserver.observe(p.el));
+  [...thumbsDiv.children].forEach((th) => thumbObserver.observe(th));
+  viewer.scrollTop = t.scrollTop || 0;
+  viewer.scrollLeft = t.scrollLeft || 0;
+  sidebar.scrollTop = t.thumbScroll || 0;
+  afterDocSwitch();
+  if (t.searchOpen && S.search.q) {
+    searchbar.hidden = false;
+    searchInput.value = S.search.q;
+    updateSearchCount();
+  } else {
+    searchbar.hidden = true;
+    searchInput.value = '';
+  }
+  if (S.fitMode) applyFit();
+  scheduleRender();
+}
+
+function afterDocSwitch() {
+  const n = S.model.pages.length;
+  document.body.classList.toggle('nodoc', !S.pdf);
+  $('#welcome').hidden = !!S.pdf;
+  tabbar.hidden = !tabs.length;
+  $('#pageTotal').textContent = n;
+  $('#gotoTotal').textContent = `/ ${n}`;
+  $('#pageInput').value = n ? S.current + 1 : '';
+  $('#gotoInput').value = n ? S.current + 1 : '';
+  updateZoomUI();
+  updateThumbClasses(false);
+  updateDirty();
+}
+
+function renderTabs() {
+  tabList.innerHTML = '';
+  tabs.forEach((t, i) => {
+    const doc = i === active ? S : t.doc;
+    const el = document.createElement('div');
+    el.className = 'doctab' + (i === active ? ' active' : '') + (t.dirty ? ' dirty' : '');
+    el.title = doc.path || doc.name;
+    el.dataset.idx = i;
+    el.innerHTML = '<span class="tdot">●</span><span class="tname"></span><button class="tclose" title="Close (Ctrl+W)">✕</button>';
+    el.querySelector('.tname').textContent = doc.name;
+    tabList.append(el);
+  });
+  tabbar.hidden = !tabs.length;
+  tabList.querySelector('.doctab.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
+tabList.addEventListener('mousedown', (e) => {
+  const el = e.target.closest('.doctab');
+  if (!el) return;
+  const i = +el.dataset.idx;
+  if (e.button === 1) {
+    e.preventDefault();
+    closeTab(i);
+  } else if (e.button === 0 && !e.target.closest('.tclose')) {
+    activate(i);
+    renderTabs();
+  }
+});
+tabList.addEventListener('click', (e) => {
+  const b = e.target.closest('.tclose');
+  if (b) closeTab(+b.closest('.doctab').dataset.idx);
+});
+tabList.addEventListener('wheel', (e) => {
+  if (e.deltaY) {
+    tabList.scrollLeft += e.deltaY;
+    e.preventDefault();
+  }
+}, { passive: false });
+
+function switchTab(delta) {
+  if (tabs.length < 2) return;
+  activate((active + delta + tabs.length) % tabs.length);
+  renderTabs();
+}
+
 // ---------------------------------------------------------------- open / close
 async function confirmDiscard() {
   commitEdits();
@@ -156,13 +292,20 @@ async function confirmDiscard() {
 }
 
 async function openDialog() {
-  if (!(await confirmDiscard())) return;
-  const p = await api.openDialog();
-  if (p) openPath(p, true);
+  const list = await api.openDialog();
+  for (const p of list || []) await openPath(p);
 }
 
-async function openPath(p, skipConfirm = false) {
-  if (!skipConfirm && !(await confirmDiscard())) return;
+const samePath = (a, b) => a && b && a.toLowerCase().replace(/\//g, '\\') === b.toLowerCase().replace(/\//g, '\\');
+
+async function openPath(p) {
+  // Already open? Just switch to it.
+  const existing = tabs.findIndex((t, i) => samePath(i === active ? S.path : t.doc.path, p));
+  if (existing >= 0) {
+    activate(existing);
+    renderTabs();
+    return;
+  }
   try {
     busy('Opening…');
     const bytes = await api.readFile(p);
@@ -187,10 +330,14 @@ async function loadBytes(bytes, p) {
     task.destroy();
   };
   const pdf = await task.promise;
-  const pdfPages = [];
-  for (let i = 1; i <= pdf.numPages; i++) pdfPages.push(await pdf.getPage(i));
+  const pdfPages = await Promise.all(Array.from({ length: pdf.numPages }, (_, i) => pdf.getPage(i + 1)));
 
-  closeDoc(true);
+  // New tab
+  stashActive();
+  const doc = blankDoc();
+  tabs.push({ id: ++tabSeq, doc, dirty: false });
+  active = tabs.length - 1;
+  loadIntoS(doc);
   S.pdf = pdf;
   S.pdfPages = pdfPages;
   S.baseBytes = imported.baseBytes;
@@ -200,55 +347,63 @@ async function loadBytes(bytes, p) {
   S.model = {
     pages: pdfPages.map((_, i) => ({ src: i, rot: 0, annots: imported.annotsBySrc[i] || [] })),
   };
-  S.undo = [];
-  S.redo = [];
   S.savedSnap = snapshot();
-  S.current = 0;
   S.selPages = new Set([0]);
-  document.body.classList.remove('nodoc');
-  $('#welcome').hidden = true;
+  searchbar.hidden = true;
+  searchInput.value = '';
   buildPagesDOM();
   buildThumbs();
   S.fitMode = 'width';
+  afterDocSwitch();
   applyFit();
   viewer.scrollTop = 0;
+  sidebar.scrollTop = 0;
   updateCurrent();
-  updateDirty();
+  renderTabs();
   viewer.focus();
   if (S.readOnly) status('This PDF is protected: viewing and printing only.', 8000);
 }
 
-function closeDoc(silent = false) {
-  commitEdits();
+async function closeTab(i = active) {
+  if (!tabs[i]) return;
+  if (i !== active) {
+    activate(i);
+    renderTabs();
+  }
+  if (!(await confirmDiscard())) return;
   closeSearch();
+  pageObserver.disconnect();
+  thumbObserver.disconnect();
+  thumbQueue.clear();
+  curTask?.cancel();
   S.pdf?.destroy();
-  S.pdf = null;
-  S.pdfPages = [];
-  S.model = { pages: [] };
-  S.textCache.clear();
-  S.pe = [];
-  S.visible.clear();
-  S.sel = null;
-  S.path = S.name = null;
-  S.undo = [];
-  S.redo = [];
   pagesDiv.innerHTML = '';
   thumbsDiv.innerHTML = '';
-  if (!silent) {
-    document.body.classList.add('nodoc');
-    $('#welcome').hidden = false;
-    $('#pageTotal').textContent = '0';
-    $('#gotoTotal').textContent = '/ 0';
-    $('#pageInput').value = '';
-    $('#gotoInput').value = '';
-    updateDirty();
+  tabs.splice(active, 1);
+  const next = Math.min(active, tabs.length - 1);
+  active = -1;
+  if (next >= 0) {
+    activate(next);
+  } else {
+    loadIntoS(blankDoc());
+    afterDocSwitch();
     refreshRecent();
   }
+  renderTabs();
 }
 
-async function closeCmd() {
-  if (!S.pdf) return;
-  if (await confirmDiscard()) closeDoc();
+const closeCmd = () => closeTab(active);
+
+async function saveAllAndClose() {
+  commitEdits();
+  for (let i = 0; i < tabs.length; i++) {
+    const dirty = i === active ? isDirty() : tabs[i].dirty;
+    if (!dirty) continue;
+    activate(i);
+    renderTabs();
+    if (!(await save(false))) return; // cancelled or failed: keep the app open
+  }
+  api.forceClose();
 }
 
 // ---------------------------------------------------------------- save / print
@@ -268,6 +423,7 @@ async function save(asNew) {
     S.name = p.split(/[\\/]/).pop();
     S.savedSnap = snapshot();
     updateDirty();
+    renderTabs();
     status(`Saved ${S.name}`);
     return true;
   } catch (e) {
@@ -1712,6 +1868,13 @@ const commands = {
     S.fitMode = 'page';
     applyFit();
   },
+  about: () => {
+    $('#aboutDlg').hidden = false;
+    $('#aboutDlg .primary').focus();
+  },
+  closeAbout: () => {
+    $('#aboutDlg').hidden = true;
+  },
   find: openSearch,
   findNext: () => showResult(S.search.idx + 1),
   findPrev: () => showResult(S.search.idx - 1),
@@ -1747,6 +1910,11 @@ window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
   const inEdit = isEditable(document.activeElement);
 
+  if (ctrl && (e.key === 'Tab' || e.key === 'PageDown' || e.key === 'PageUp')) {
+    e.preventDefault();
+    switchTab(e.key === 'PageUp' || (e.key === 'Tab' && e.shiftKey) ? -1 : 1);
+    return;
+  }
   if (ctrl) {
     const map = {
       o: openDialog, p: print, f: openSearch, w: closeCmd,
@@ -1777,6 +1945,18 @@ window.addEventListener('keydown', (e) => {
     return;
   }
 
+  if (e.key === 'F1') {
+    e.preventDefault();
+    commands.about();
+    return;
+  }
+  if (!$('#aboutDlg').hidden) {
+    if (e.key === 'Escape' || e.key === 'Enter') {
+      e.preventDefault();
+      commands.closeAbout();
+    }
+    return;
+  }
   if (e.key === 'Escape') {
     hideMenus();
     if (S.editing || S.openNote) {
@@ -1842,26 +2022,31 @@ window.addEventListener('drop', (e) => {
   e.preventDefault();
   dragDepth = 0;
   $('#dropOverlay').hidden = true;
-  const f = [...(e.dataTransfer?.files || [])].find((x) => /\.pdf$/i.test(x.name));
-  if (!f) {
+  const files = [...(e.dataTransfer?.files || [])].filter((x) => /\.pdf$/i.test(x.name));
+  if (!files.length) {
     status('Only PDF files can be opened.');
     return;
   }
-  openPath(api.pathForFile(f));
+  (async () => {
+    for (const f of files) await openPath(api.pathForFile(f));
+  })();
 });
 
 // ---------------------------------------------------------------- startup
 api.onOpenPath((p) => openPath(p));
-api.onSaveAndClose(async () => {
-  if (await save(false)) api.forceClose();
+api.onSaveAndClose(saveAllAndClose);
+
+$('#aboutDlg').addEventListener('mousedown', (e) => {
+  if (e.target.id === 'aboutDlg') commands.closeAbout();
 });
+api.version().then((v) => ($('#aboutVersion').textContent = v));
 
 document.body.classList.add('nodoc', 'tool-select');
 buildSwatches();
 updateDirty();
 updateZoomUI();
 refreshRecent();
-api.startupPath().then((p) => p && openPath(p, true));
+api.startupPath().then((p) => p && openPath(p));
 
 // test hook (used by automated tests only)
-window.__pdfacil = { S, openPath, save, setTool, highlightSelection, deletePages, rotatePages, undo, redo, runSearch, setScale, buildPdf };
+window.__pdfacil = { S, tabs, getActive: () => active, activate, closeTab, openPath, save, setTool, highlightSelection, deletePages, rotatePages, undo, redo, runSearch, setScale, buildPdf };

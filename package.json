@@ -6,7 +6,7 @@
   "scripts": {
     "postinstall": "node scripts/copy-vendor.js",
     "start": "electron .",
-    "dist": "electron-builder --win portable --x64 && node scripts/copy-exe.js",
+    "dist": "electron-builder --win dir --x64 && node scripts/copy-exe.js",
     "test": "node test/smoke.cjs"
   },
   "author": "PDFacil",
@@ -34,16 +34,13 @@
     "win": {
       "target": [
         {
-          "target": "portable",
+          "target": "dir",
           "arch": [
             "x64"
           ]
         }
       ],
       "icon": "build/icon.ico"
-    },
-    "portable": {
-      "artifactName": "PDFacil-${version}-portable.exe"
     },
     "fileAssociations": [
       {
@@ -54,6 +51,9 @@
     ],
     "directories": {
       "output": "dist"
-    }
+    },
+    "electronLanguages": [
+      "en-US"
+    ]
   }
 }

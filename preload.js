@@ -9,6 +9,7 @@ try {
 contextBridge.exposeInMainWorld('api', {
   username,
   startupPath: () => ipcRenderer.invoke('startup-path'),
+  version: () => ipcRenderer.invoke('app-version'),
   getRecent: () => ipcRenderer.invoke('get-recent'),
   openDialog: () => ipcRenderer.invoke('open-dialog'),
   readFile: (p) => ipcRenderer.invoke('read-file', p),
