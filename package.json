@@ -1,0 +1,59 @@
+{
+  "name": "pdfacil",
+  "version": "1.0.0",
+  "description": "PDFacil - an easy PDF viewer and editor",
+  "main": "main.js",
+  "scripts": {
+    "postinstall": "node scripts/copy-vendor.js",
+    "start": "electron .",
+    "dist": "electron-builder --win portable --x64 && node scripts/copy-exe.js",
+    "test": "node test/smoke.cjs"
+  },
+  "author": "PDFacil",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^4.10.38"
+  },
+  "devDependencies": {
+    "electron": "^45.3.0",
+    "electron-builder": "^26.18.0"
+  },
+  "productName": "PDFacil",
+  "build": {
+    "appId": "com.pdfacil.app",
+    "productName": "PDFacil",
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "build/icon.png",
+      "!node_modules/**/*"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "portable": {
+      "artifactName": "PDFacil-${version}-portable.exe"
+    },
+    "fileAssociations": [
+      {
+        "ext": "pdf",
+        "name": "PDF Document",
+        "role": "Viewer"
+      }
+    ],
+    "directories": {
+      "output": "dist"
+    }
+  }
+}

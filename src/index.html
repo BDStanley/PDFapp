@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; worker-src 'self' blob:; font-src 'self' data:; connect-src 'self' data: blob:" />
+  <title>PDFacil</title>
+  <link rel="stylesheet" href="vendor/pdf_viewer.css" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="vendor/pdf-lib.min.js"></script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <!-- Tab row -->
+  <header id="tabrow">
+    <div class="qa">
+      <button class="qa-btn" data-cmd="undo" title="Undo (Ctrl+Z)" data-icon="undo"></button>
+      <button class="qa-btn" data-cmd="redo" title="Redo (Ctrl+Y)" data-icon="redo"></button>
+    </div>
+    <nav id="tabs">
+      <button class="tab active" data-tab="file">File</button>
+      <button class="tab" data-tab="pages">Pages</button>
+      <button class="tab" data-tab="comment">Comment</button>
+      <button class="tab" data-tab="view">View</button>
+    </nav>
+    <div class="brand">PDFacil</div>
+  </header>
+
+  <!-- Ribbon -->
+  <section id="ribbon">
+    <div class="panel active" data-panel="file">
+      <div class="group">
+        <div class="items">
+          <button class="big" data-cmd="open" data-icon="open" title="Open a PDF (Ctrl+O)">Open</button>
+          <button class="big" data-cmd="save" data-icon="save" title="Save (Ctrl+S)">Save</button>
+          <button class="big" data-cmd="saveAs" data-icon="saveAs" title="Save as a new file (Ctrl+Shift+S)">Save As</button>
+        </div>
+        <div class="glabel">File</div>
+      </div>
+      <div class="group">
+        <div class="items">
+          <button class="big" data-cmd="print" data-icon="print" title="Print (Ctrl+P)">Print</button>
+        </div>
+        <div class="glabel">Output</div>
+      </div>
+      <div class="group">
+        <div class="items">
+          <div class="dropdown">
+            <button class="big" data-cmd="recentMenu" data-icon="recent" title="Recently opened files">Recent&nbsp;▾</button>
+            <div class="menu" id="recentMenu"></div>
+          </div>
+          <button class="big" data-cmd="closeDoc" data-icon="close" title="Close document (Ctrl+W)">Close</button>
+        </div>
+        <div class="glabel">Documents</div>
+      </div>
+    </div>
+
+    <div class="panel" data-panel="pages">
+      <div class="group">
+        <div class="items">
+          <button class="big" data-cmd="firstPage" data-icon="first" title="First page (Home)">First</button>
+          <button class="big" data-cmd="prevPage" data-icon="prev" title="Previous page">Previous</button>
+          <button class="big" data-cmd="nextPage" data-icon="next" title="Next page">Next</button>
+          <button class="big" data-cmd="lastPage" data-icon="last" title="Last page (End)">Last</button>
+          <div class="stack">
+            <label class="small-label">Go to page</label>
+            <div class="goto"><input id="gotoInput" type="text" inputmode="numeric" title="Type a page number and press Enter (Ctrl+G)" /><span id="gotoTotal">/ 0</span></div>
+          </div>
+        </div>
+        <div class="glabel">Navigate</div>
+      </div>
+      <div class="group">
+        <div class="items">
+          <button class="big" data-cmd="rotateLeft" data-icon="rotL" title="Rotate selected page(s) left">Rotate Left</button>
+          <button class="big" data-cmd="rotateRight" data-icon="rotR" title="Rotate selected page(s) right">Rotate Right</button>
+        </div>
+        <div class="glabel">Rotate</div>
+      </div>
+      <div class="group">
+        <div class="items">
+          <button class="big danger" data-cmd="deletePages" data-icon="trash" title="Delete selected page(s)">Delete Page</button>
+        </div>
+        <div class="glabel">Delete</div>
+      </div>
+      <div class="group hint-group">
+        <div class="hint">Acts on the current page.<br />Ctrl+click thumbnails to pick several.<br /><span id="pageSelInfo"></span></div>
+      </div>
+    </div>
+
+    <div class="panel" data-panel="comment">
+      <div class="group">
+        <div class="items">
+          <button class="big tool active" data-tool="select" data-icon="cursor" title="Select text and comments (Esc)">Select</button>
+          <button class="big tool" data-tool="highlight" data-icon="highlight" title="Highlight: drag over text (H)">Highlight</button>
+          <button class="big tool" data-tool="text" data-icon="text" title="Type text on the page: click where it should go (T)">Text</button>
+          <button class="big tool" data-tool="note" data-icon="note" title="Add a comment: click where it should go (N)">Comment</button>
+        </div>
+        <div class="glabel">Tools</div>
+      </div>
+      <div class="group">
+        <div class="items swatches" id="hlSwatches"></div>
+        <div class="glabel">Highlight color</div>
+      </div>
+      <div class="group">
+        <div class="items">
+          <div class="stack">
+            <label class="small-label">Size</label>
+            <select id="textSize" title="Font size">
+              <option>8</option><option>9</option><option>10</option><option>11</option>
+              <option selected>12</option><option>14</option><option>16</option><option>18</option>
+              <option>20</option><option>24</option><option>28</option><option>36</option>
+            </select>
+          </div>
+          <div class="swatches" id="txtSwatches"></div>
+        </div>
+        <div class="glabel">Text</div>
+      </div>
+      <div class="group">
+        <div class="items">
+          <button class="big danger" data-cmd="deleteAnnot" data-icon="eraser" title="Delete the selected highlight, text or comment (Delete)">Remove</button>
+        </div>
+        <div class="glabel">Edit</div>
+      </div>
+    </div>
+
+    <div class="panel" data-panel="view">
+      <div class="group">
+        <div class="items">
+          <button class="big" data-cmd="zoomIn" data-icon="zoomIn" title="Zoom in (Ctrl + mouse wheel up, Ctrl +)">Zoom In</button>
+          <button class="big" data-cmd="zoomOut" data-icon="zoomOut" title="Zoom out (Ctrl + mouse wheel down, Ctrl -)">Zoom Out</button>
+          <button class="big" data-cmd="zoom100" data-icon="actual" title="Actual size (Ctrl+0)">100%</button>
+          <button class="big" data-cmd="fitWidth" data-icon="fitW" title="Fit page width">Fit Width</button>
+          <button class="big" data-cmd="fitPage" data-icon="fitP" title="Fit whole page">Fit Page</button>
+        </div>
+        <div class="glabel">Zoom</div>
+      </div>
+      <div class="group">
+        <div class="items">
+          <button class="big" data-cmd="find" data-icon="search" title="Search text (Ctrl+F)">Search</button>
+          <button class="big toggle active" data-cmd="toggleThumbs" data-icon="thumbs" title="Show or hide page thumbnails">Thumbnails</button>
+        </div>
+        <div class="glabel">Show</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main area -->
+  <main id="main">
+    <aside id="sidebar" tabindex="0"><div id="thumbs"></div></aside>
+    <div id="viewerWrap">
+      <div id="viewer" tabindex="0"><div id="pages"></div></div>
+
+      <div id="searchbar" hidden>
+        <input id="searchInput" type="text" placeholder="Search in document" />
+        <span id="searchCount"></span>
+        <button data-cmd="findPrev" data-icon="up" title="Previous match (Shift+Enter)"></button>
+        <button data-cmd="findNext" data-icon="down" title="Next match (Enter)"></button>
+        <button data-cmd="findClose" data-icon="x" title="Close (Esc)"></button>
+      </div>
+
+      <div id="welcome">
+        <div class="welcome-card">
+          <div class="logo">PDF<span>acil</span></div>
+          <p>Open a PDF to get started, or drop one anywhere on this window.</p>
+          <button class="primary" data-cmd="open">Open PDF…</button>
+          <div id="welcomeRecent"></div>
+        </div>
+      </div>
+      <div id="dropOverlay" hidden><div>Drop PDF to open</div></div>
+    </div>
+  </main>
+
+  <!-- Status bar -->
+  <footer id="statusbar">
+    <div class="left">
+      Page <input id="pageInput" type="text" inputmode="numeric" /> of <span id="pageTotal">0</span>
+    </div>
+    <div class="center" id="statusMsg"></div>
+    <div class="right">
+      <button data-cmd="zoomOut" title="Zoom out">−</button>
+      <input id="zoomSlider" type="range" min="10" max="500" step="1" value="100" />
+      <button data-cmd="zoomIn" title="Zoom in">+</button>
+      <span id="zoomLabel">100%</span>
+    </div>
+  </footer>
+
+  <div id="ctxMenu" class="menu" hidden></div>
+  <div id="busy" hidden><div class="spinner"></div><div id="busyMsg">Working…</div></div>
+</body>
+</html>

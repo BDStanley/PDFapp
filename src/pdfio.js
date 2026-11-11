@@ -1,0 +1,309 @@
+// PDFacil - reading and writing annotations with pdf-lib.
+// Annotations are stored in PDF user space (unrotated page coordinates, origin bottom-left).
+/* global PDFLib */
+const {
+  PDFDocument, PDFName, PDFHexString, PDFString, PDFArray, PDFDict, PDFNumber,
+  StandardFonts, degrees,
+  pushGraphicsState, popGraphicsState, setGraphicsState, setFillingRgbColor,
+  rectangle, fill, moveTo, lineTo, closePath, stroke, setLineWidth, setStrokingRgbColor,
+  appendBezierCurve, beginText, endText, setFontAndSize, moveText, showText,
+} = PDFLib;
+
+const MARK = 'PDFacilData'; // private key holding our own model JSON for exact round-trips
+
+export const HIGHLIGHT_COLORS = {
+  yellow: [1, 0.92, 0.23],
+  green: [0.55, 0.9, 0.4],
+  blue: [0.45, 0.8, 1],
+  pink: [1, 0.55, 0.8],
+};
+
+let idCounter = 0;
+export const newId = () => `pdfacil-${Date.now().toString(36)}-${(idCounter++).toString(36)}`;
+
+const num = (o) => (o instanceof PDFNumber ? o.asNumber() : Number(o?.asNumber?.() ?? 0));
+const arr = (a) => (a instanceof PDFArray ? a.asArray().map(num) : null);
+const textOf = (o) => {
+  if (!o) return '';
+  try {
+    return o.decodeText();
+  } catch {
+    return '';
+  }
+};
+
+/**
+ * Load a PDF. Highlights, sticky notes, and PDFacil text boxes are lifted out of
+ * the file into an editable model, so they can be moved, edited and deleted.
+ * Returns { baseBytes, annotsBySrc, encrypted }.
+ */
+export async function importAnnotations(bytes) {
+  let doc;
+  try {
+    doc = await PDFDocument.load(bytes, { updateMetadata: false });
+  } catch (e) {
+    if (/encrypt/i.test(String(e))) return { baseBytes: bytes, annotsBySrc: [], encrypted: true };
+    throw e;
+  }
+  const ctx = doc.context;
+  const annotsBySrc = [];
+  let changed = false;
+
+  doc.getPages().forEach((page, pi) => {
+    const list = [];
+    annotsBySrc[pi] = list;
+    const annotsArr = page.node.lookupMaybe(PDFName.of('Annots'), PDFArray);
+    if (!annotsArr) return;
+    const removeRefs = new Set();
+    const entries = annotsArr.asArray();
+    entries.forEach((ref) => {
+      const dict = ctx.lookupMaybe(ref, PDFDict);
+      if (!dict) return;
+      const sub = dict.get(PDFName.of('Subtype'))?.toString();
+      const color = arr(dict.lookupMaybe(PDFName.of('C'), PDFArray));
+      const rgb = color && color.length === 3 ? color : null;
+      const mark = dict.get(PDFName.of(MARK));
+      try {
+        if (mark) {
+          const data = JSON.parse(textOf(mark));
+          if (data && data.type) {
+            data.id = newId();
+            list.push(data);
+            removeRefs.add(ref);
+            return;
+          }
+        }
+        if (sub === '/Highlight') {
+          const qp = arr(dict.lookupMaybe(PDFName.of('QuadPoints'), PDFArray));
+          if (!qp || qp.length < 8) return;
+          const quads = [];
+          for (let i = 0; i + 8 <= qp.length; i += 8) quads.push(qp.slice(i, i + 8));
+          list.push({
+            id: newId(), type: 'highlight', quads,
+            color: rgb || HIGHLIGHT_COLORS.yellow,
+            contents: textOf(dict.get(PDFName.of('Contents'))),
+          });
+          removeRefs.add(ref);
+        } else if (sub === '/Text') {
+          const r = arr(dict.lookupMaybe(PDFName.of('Rect'), PDFArray));
+          if (!r) return;
+          list.push({
+            id: newId(), type: 'note',
+            x: (r[0] + r[2]) / 2, y: (r[1] + r[3]) / 2,
+            contents: textOf(dict.get(PDFName.of('Contents'))),
+            color: rgb || [1, 0.85, 0.2],
+          });
+          removeRefs.add(ref);
+        }
+      } catch {
+        /* leave anything we cannot parse untouched */
+      }
+    });
+    if (!removeRefs.size) return;
+    // Also drop popups that belong to the annotations we lifted out.
+    entries.forEach((ref) => {
+      const dict = ctx.lookupMaybe(ref, PDFDict);
+      if (dict?.get(PDFName.of('Subtype'))?.toString() === '/Popup') {
+        const parent = dict.get(PDFName.of('Parent'));
+        if (parent && removeRefs.has(parent)) removeRefs.add(ref);
+      }
+    });
+    const keep = entries.filter((r) => !removeRefs.has(r));
+    page.node.set(PDFName.of('Annots'), ctx.obj(keep));
+    changed = true;
+  });
+
+  const baseBytes = changed ? await doc.save({ useObjectStreams: false }) : bytes;
+  return { baseBytes, annotsBySrc, encrypted: false };
+}
+
+// ---------- appearance streams ----------
+
+function highlightAP(ctx, a) {
+  const xs = a.quads.flatMap((q) => [q[0], q[2], q[4], q[6]]);
+  const ys = a.quads.flatMap((q) => [q[1], q[3], q[5], q[7]]);
+  const bbox = [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+  const ops = [pushGraphicsState(), setGraphicsState('GS0'), setFillingRgbColor(...a.color)];
+  for (const q of a.quads) {
+    // Quad order: UL, UR, LL, LR (as written by Acrobat).
+    ops.push(moveTo(q[4], q[5]), lineTo(q[6], q[7]), lineTo(q[2], q[3]), lineTo(q[0], q[1]), closePath());
+  }
+  ops.push(fill(), popGraphicsState());
+  const gs = ctx.obj({ Type: 'ExtGState', BM: 'Multiply', CA: 1, ca: 1 });
+  const stream = ctx.formXObject(ops, {
+    BBox: bbox,
+    Resources: { ExtGState: { GS0: gs } },
+  });
+  return { ref: ctx.register(stream), rect: bbox };
+}
+
+function noteAP(ctx, color) {
+  const s = 20;
+  const [r, g, b] = color;
+  const ops = [
+    pushGraphicsState(),
+    setFillingRgbColor(r, g, b),
+    setStrokingRgbColor(r * 0.6, g * 0.6, b * 0.6),
+    setLineWidth(1),
+    // speech bubble
+    moveTo(2, 6), lineTo(2, 18), lineTo(18, 18), lineTo(18, 6), lineTo(9, 6), lineTo(5, 2), lineTo(6, 6), closePath(),
+    PDFLib.fillAndStroke(),
+    setStrokingRgbColor(r * 0.45, g * 0.45, b * 0.45),
+    moveTo(5, 14), lineTo(15, 14), moveTo(5, 11.5), lineTo(15, 11.5), moveTo(5, 9), lineTo(12, 9),
+    stroke(),
+    popGraphicsState(),
+  ];
+  return ctx.register(ctx.formXObject(ops, { BBox: [0, 0, s, s] }));
+}
+
+/** Wrap text into lines that fit `maxWidth` using the given width function. */
+export function wrapLines(text, maxWidth, widthOf) {
+  const out = [];
+  for (const para of String(text).split(/\r?\n/)) {
+    const words = para.split(/( +)/);
+    let line = '';
+    for (const w of words) {
+      const trial = line + w;
+      if (line && widthOf(trial.trimEnd()) > maxWidth) {
+        out.push(line.trimEnd());
+        line = w.trimStart();
+        // Very long single words are broken by character.
+        while (widthOf(line) > maxWidth && line.length > 1) {
+          let k = line.length - 1;
+          while (k > 1 && widthOf(line.slice(0, k)) > maxWidth) k--;
+          out.push(line.slice(0, k));
+          line = line.slice(k);
+        }
+      } else {
+        line = trial;
+      }
+    }
+    out.push(line.trimEnd());
+  }
+  return out;
+}
+
+export const TEXT_PAD = 2; // points of padding inside a text box
+export const LINE_FACTOR = 1.2;
+
+function sanitizeForFont(font, s) {
+  let out = '';
+  for (const ch of s) {
+    try {
+      font.encodeText(ch);
+      out += ch;
+    } catch {
+      out += '?';
+    }
+  }
+  return out;
+}
+
+function textAP(ctx, a, font) {
+  const { w, h, size, color } = a;
+  const lines = wrapLines(sanitizeForFont(font, a.text), w - 2 * TEXT_PAD, (t) => font.widthOfTextAtSize(t, size));
+  const lead = size * LINE_FACTOR;
+  const ascent = font.heightAtSize(size, { descender: false });
+  const ops = [pushGraphicsState(), beginText(), setFontAndSize('Helv', size), setFillingRgbColor(...color)];
+  // First baseline: top padding + half the extra leading + ascent (matches CSS line-height layout).
+  let y = h - TEXT_PAD - (lead - size) / 2 - ascent;
+  ops.push(moveText(TEXT_PAD, y));
+  lines.forEach((line, i) => {
+    if (i > 0) ops.push(moveText(0, -lead));
+    if (line) ops.push(showText(font.encodeText(line)));
+  });
+  ops.push(endText(), popGraphicsState());
+  const rad = (a.rot * Math.PI) / 180;
+  const c = Math.round(Math.cos(rad));
+  const s = Math.round(Math.sin(rad));
+  const stream = ctx.formXObject(ops, {
+    BBox: [0, 0, w, h],
+    Matrix: [c, s, -s, c, 0, 0],
+    Resources: { Font: { Helv: font.ref } },
+  });
+  return ctx.register(stream);
+}
+
+/**
+ * Corners of a text box in user space. The box is defined by its anchor (top-left
+ * as seen when it was created, at page view rotation `rot`) and its size in points.
+ */
+export function textBoxCorners(a) {
+  const rad = (a.rot * Math.PI) / 180;
+  const c = Math.round(Math.cos(rad));
+  const s = Math.round(Math.sin(rad));
+  // Screen "right" and "down" directions expressed in user space for view rotation rot.
+  const right = [c, s];
+  const down = [s, -c];
+  const p = (dx, dy) => [a.x + right[0] * dx + down[0] * dy, a.y + right[1] * dx + down[1] * dy];
+  return [p(0, 0), p(a.w, 0), p(0, a.h), p(a.w, a.h)];
+}
+
+export function textBoxRect(a) {
+  const pts = textBoxCorners(a);
+  const xs = pts.map((p) => p[0]);
+  const ys = pts.map((p) => p[1]);
+  return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
+}
+
+/**
+ * Build the final PDF from the base bytes and the edit model.
+ * model.pages: [{ src, rot, annots }] in document order (pages can only be removed, never reordered).
+ */
+export async function buildPdf(baseBytes, model, author) {
+  const doc = await PDFDocument.load(baseBytes, { updateMetadata: false });
+  const ctx = doc.context;
+  const pages = doc.getPages();
+  let font = null;
+  const now = PDFString.fromDate(new Date());
+  const authorStr = PDFHexString.fromText(author || 'PDFacil');
+
+  for (const mp of model.pages) {
+    const page = pages[mp.src];
+    if (mp.rot) page.setRotation(degrees((page.getRotation().angle + mp.rot) % 360));
+    for (const a of mp.annots) {
+      let dict;
+      if (a.type === 'highlight') {
+        const ap = highlightAP(ctx, a);
+        dict = ctx.obj({
+          Type: 'Annot', Subtype: 'Highlight', Rect: ap.rect, QuadPoints: a.quads.flat(),
+          C: a.color, CA: 1, F: 4, AP: { N: ap.ref },
+        });
+        if (a.contents) dict.set(PDFName.of('Contents'), PDFHexString.fromText(a.contents));
+      } else if (a.type === 'note') {
+        const rect = [a.x - 10, a.y - 10, a.x + 10, a.y + 10];
+        dict = ctx.obj({
+          Type: 'Annot', Subtype: 'Text', Rect: rect, C: a.color, Name: 'Comment', F: 4,
+          Open: false, AP: { N: noteAP(ctx, a.color) },
+        });
+        dict.set(PDFName.of('Contents'), PDFHexString.fromText(a.contents || ''));
+      } else if (a.type === 'text') {
+        if (!a.text.trim()) continue;
+        font ||= await doc.embedFont(StandardFonts.Helvetica);
+        const [r, g, b] = a.color;
+        dict = ctx.obj({
+          Type: 'Annot', Subtype: 'FreeText', Rect: textBoxRect(a), F: 4,
+          BS: { W: 0 }, Border: [0, 0, 0],
+          AP: { N: textAP(ctx, a, font) },
+        });
+        dict.set(PDFName.of('DA'), PDFString.of(`/Helv ${a.size} Tf ${r} ${g} ${b} rg`));
+        dict.set(PDFName.of('Contents'), PDFHexString.fromText(a.text));
+        if (a.rot) dict.set(PDFName.of('Rotate'), PDFNumber.of(a.rot));
+      } else continue;
+      dict.set(PDFName.of('T'), authorStr);
+      dict.set(PDFName.of('M'), now);
+      dict.set(PDFName.of('NM'), PDFString.of(a.id));
+      dict.set(PDFName.of('P'), page.ref);
+      const copy = { ...a };
+      delete copy.id;
+      dict.set(PDFName.of(MARK), PDFHexString.fromText(JSON.stringify(copy)));
+      page.node.addAnnot(ctx.register(dict));
+    }
+  }
+
+  // Remove deleted pages (highest index first so indices stay valid).
+  const kept = new Set(model.pages.map((p) => p.src));
+  for (let i = pages.length - 1; i >= 0; i--) if (!kept.has(i)) doc.removePage(i);
+
+  return doc.save();
+}
