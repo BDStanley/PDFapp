@@ -28,7 +28,7 @@ fs.copyFileSync(path.join(__dirname, 'sample.pdf'), sample);
 
   // Comment tab, highlight by selecting text on page 1
   await win.click('.tab[data-tab=comment]');
-  await win.click('[data-tool=highlight]');
+  await win.click('.panel.active [data-tool=highlight]');
   const spans = await win.$$('.page[data-idx="0"] .textLayer span');
   console.log('text spans on page 1:', spans.length);
   const b1 = await spans[1].boundingBox();
@@ -41,18 +41,18 @@ fs.copyFileSync(path.join(__dirname, 'sample.pdf'), sample);
   console.log('highlights after select:', await win.evaluate(() => window.__pdfacil.S.model.pages[0].annots.length));
 
   // Text box
-  await win.click('[data-tool=text]');
+  await win.click('.panel.active [data-tool=text]');
   const pg = await (await win.$('.page[data-idx="0"]')).boundingBox();
   await win.mouse.click(pg.x + 300, pg.y + 140);
   await win.keyboard.type('Hello from PDFacil! This is a longer note that should wrap onto a second line nicely.');
   await win.keyboard.press('Escape');
   // Sticky note
-  await win.click('[data-tool=note]');
+  await win.click('.panel.active [data-tool=note]');
   await win.mouse.click(pg.x + 80, pg.y + 300);
   await win.waitForTimeout(100);
   await win.keyboard.type('Check this number again.');
   await win.keyboard.press('Escape');
-  await win.click('[data-tool=select]');
+  await win.click('.panel.active [data-tool=select]');
   await win.waitForTimeout(400);
   await win.screenshot({ path: path.join(out, '02-annots.png') });
   console.log('annots page1:', await win.evaluate(() => JSON.stringify(window.__pdfacil.S.model.pages[0].annots.map((a) => a.type))));
@@ -68,23 +68,23 @@ fs.copyFileSync(path.join(__dirname, 'sample.pdf'), sample);
   // Pages: rotate page 2 right, delete page 3
   await win.click('.tab[data-tab=pages]');
   await win.click('.thumb[data-idx="1"]');
-  await win.click('[data-cmd=rotateRight]');
+  await win.click('.panel.active [data-cmd=rotateRight]');
   await win.click('.thumb[data-idx="2"]');
-  await win.click('[data-cmd=deletePages]');
+  await win.click('.panel.active [data-cmd=deletePages]');
   await win.waitForTimeout(600);
   console.log('pages now:', await win.evaluate(() => JSON.stringify(window.__pdfacil.S.model.pages.map((p) => [p.src, p.rot]))));
   await win.screenshot({ path: path.join(out, '03-pages.png') });
 
   // Text box on rotated page (page index 1, rotated 90)
   await win.click('.tab[data-tab=comment]');
-  await win.click('[data-tool=text]');
+  await win.click('.panel.active [data-tool=text]');
   await win.evaluate(() => window.__pdfacil.S.pe[1].el.scrollIntoView());
   await win.waitForTimeout(300);
   const pg2 = await (await win.$('.page[data-idx="1"]')).boundingBox();
   await win.mouse.click(pg2.x + 200, pg2.y + 100);
   await win.keyboard.type('Rotated page text');
   await win.keyboard.press('Escape');
-  await win.click('[data-tool=select]');
+  await win.click('.panel.active [data-tool=select]');
 
   // Zoom with ctrl+wheel
   await win.click('.tab[data-tab=view]');
@@ -96,7 +96,7 @@ fs.copyFileSync(path.join(__dirname, 'sample.pdf'), sample);
   await win.waitForTimeout(500);
   const s1 = await win.evaluate(() => window.__pdfacil.S.scale);
   console.log('zoom', s0.toFixed(2), '->', s1.toFixed(2));
-  await win.click('[data-cmd=fitPage]');
+  await win.click('.panel.active [data-cmd=fitPage]');
   await win.waitForTimeout(400);
 
   // Search

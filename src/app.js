@@ -1881,7 +1881,7 @@ const commands = {
   findClose: closeSearch,
   toggleThumbs: () => {
     sidebar.classList.toggle('hidden');
-    $('[data-cmd=toggleThumbs]').classList.toggle('active', !sidebar.classList.contains('hidden'));
+    $$('[data-cmd=toggleThumbs]').forEach((b) => b.classList.toggle('active', !sidebar.classList.contains('hidden')));
     if (S.fitMode) setTimeout(applyFit, 0);
   },
 };

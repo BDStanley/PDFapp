@@ -7,6 +7,7 @@ Run `PDFacil.exe` in `C:/program files (by claude)/PDFacil` (the whole folder is
 Tip: right-click any PDF > Open with > Choose another app > browse to the exe, to open PDFs with PDFacil.
 
 ## Ribbon
+- **Home** (opens first): Open, Save, Print, Delete page, Rotate left/right, Select, Highlight, Text, Comment, Thumbnails
 - **File**: Open, Save, Save As, Print, Recent, Close
 - **Pages**: First/Previous/Next/Last, Go to page, Rotate left/right, Delete page
 - **Comment**: Select, Highlight, Text, Comment (sticky note), colors, font size, Remove

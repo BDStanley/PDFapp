@@ -14,12 +14,12 @@ const out = path.join(__dirname, 'out');
   const H = (fn, arg) => win.evaluate(fn, arg);
   // highlight in tab 1 via Comment > Highlight
   await win.click('.tab[data-tab=comment]');
-  await win.click('[data-tool=highlight]');
+  await win.click('.panel.active [data-tool=highlight]');
   const spans = await win.$$('.page[data-idx="0"] .textLayer span');
   const a = await spans[1].boundingBox(), b = await spans[2].boundingBox();
   await win.mouse.move(a.x + 2, a.y + a.height / 2); await win.mouse.down();
   await win.mouse.move(b.x + b.width - 2, b.y + b.height / 2, { steps: 6 }); await win.mouse.up();
-  await win.click('[data-tool=select]');
+  await win.click('.panel.active [data-tool=select]');
   // open second file
   await H((p) => window.__pdfacil.openPath(p), path.join(out, 'real.pdf'));
   await win.waitForTimeout(800);

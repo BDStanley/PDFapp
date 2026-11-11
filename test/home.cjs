@@ -1,0 +1,27 @@
+const { _electron: electron } = require('playwright');
+const path = require('path');
+const root = path.join(__dirname, '..');
+const out = path.join(__dirname, 'out');
+(async () => {
+  const app = await electron.launch({ executablePath: require(path.join(root, 'node_modules', 'electron')), args: ['--no-sandbox', root, path.join(out, 'work.pdf')] });
+  const win = await app.firstWindow();
+  const errors = [];
+  win.on('pageerror', (e) => errors.push(e.message));
+  win.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+  await win.waitForFunction(() => document.querySelector('.page canvas.pc'), null, { timeout: 20000 });
+  await win.waitForTimeout(500);
+  console.log('active tab:', await win.textContent('.tab.active'));
+  await win.click('.panel.active [data-cmd=rotateRight]');
+  await win.click('.panel.active [data-tool=text]');
+  console.log('tool active in Comment tab too:', await win.$eval('[data-panel=comment] [data-tool=text]', (b) => b.classList.contains('active')));
+  await win.click('.panel.active [data-cmd=toggleThumbs]');
+  console.log('thumbs hidden:', await win.$eval('#sidebar', (s) => s.classList.contains('hidden')), 'view btn active:', await win.$eval('[data-panel=view] [data-cmd=toggleThumbs]', (b) => b.classList.contains('active')));
+  await win.click('.panel.active [data-cmd=toggleThumbs]');
+  await win.click('.panel.active [data-tool=select]');
+  console.log('rot:', await win.evaluate(() => window.__pdfacil.S.model.pages[0].rot));
+  await win.keyboard.press('Control+z');
+  await win.waitForTimeout(400);
+  await win.screenshot({ path: path.join(out, '13-home.png') });
+  console.log('ERRORS:', errors.join('\n'));
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].destroy());
+})().catch((e) => { console.error('FAIL', e); process.exit(1); });

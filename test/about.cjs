@@ -8,7 +8,7 @@ const root = path.join(__dirname, '..');
   win.on('pageerror', (e) => errors.push(e.message));
   win.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   await win.waitForTimeout(1200);
-  await win.click('[data-cmd=about]');
+  await win.click('.panel.active [data-cmd=about]');
   await win.waitForTimeout(300);
   await win.screenshot({ path: path.join(__dirname, 'out', '10-about.png') });
   await win.keyboard.press('Escape');
