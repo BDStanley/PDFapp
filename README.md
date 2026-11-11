@@ -7,11 +7,12 @@ Run `PDFacil.exe` in `C:/program files (by claude)/PDFacil` (the whole folder is
 Tip: right-click any PDF > Open with > Choose another app > browse to the exe, to open PDFs with PDFacil.
 
 ## Ribbon
-- **Home** (opens first): Open, Save, Print, Delete page, Rotate left/right, Select, Highlight, Text, Comment, Thumbnails
+- **Home** (opens first): Open, Save, Print, Delete page, Rotate left/right, Select, Highlight, Text, Comment, Outline, Thumbnails
 - **File**: Open, Save, Save As, Print, Recent, Close
 - **Pages**: First/Previous/Next/Last, Go to page, Rotate left/right, Delete page
 - **Comment**: Select, Highlight, Text, Comment (sticky note), colors, font, font size, Remove
-- **View**: Zoom in/out, 100%, Fit width, Fit page, Search, Thumbnails
+- **View**: Zoom in/out, 100%, Fit width, Fit page, Search, Outline, Thumbnails
+- **Outline**: a clickable table of contents on the left. Uses the PDF's bookmarks; if it has none, headings are detected from the text size. The current section is highlighted as you scroll
 - **Text formatting**: right-click a text box you typed to change its font (Arial, Times New Roman, Courier New), size and color
 - **Hide the ribbon**: the arrow at the top right (or Ctrl+F1, or double-click a tab) collapses the ribbon for more reading space; click a tab to use it temporarily
 - **Tabs**: open several PDFs at once; each gets a tab (Ctrl+Tab to switch, Ctrl+W or middle-click to close)

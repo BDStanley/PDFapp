@@ -54,6 +54,7 @@
       </div>
       <div class="group">
         <div class="items">
+          <button class="big toggle" data-cmd="toggleOutline" data-icon="outline" title="Show or hide the outline (click a heading to jump there)">Outline</button>
           <button class="big toggle active" data-cmd="toggleThumbs" data-icon="thumbs" title="Show or hide page thumbnails">Thumbnails</button>
         </div>
       </div>
@@ -178,6 +179,7 @@
       <div class="group">
         <div class="items">
           <button class="big" data-cmd="find" data-icon="search" title="Search text (Ctrl+F)">Search</button>
+          <button class="big toggle" data-cmd="toggleOutline" data-icon="outline" title="Show or hide the outline (click a heading to jump there)">Outline</button>
           <button class="big toggle active" data-cmd="toggleThumbs" data-icon="thumbs" title="Show or hide page thumbnails">Thumbnails</button>
         </div>
         <div class="glabel">Show</div>
@@ -193,6 +195,11 @@
 
   <!-- Main area -->
   <main id="main">
+    <aside id="outlinePanel" class="hidden">
+      <div class="ol-head"><span>Outline</span><button data-cmd="toggleOutline" title="Hide outline">✕</button></div>
+      <div id="outlineNote"></div>
+      <div id="outlineBody" tabindex="0"></div>
+    </aside>
     <aside id="sidebar" tabindex="0"><div id="thumbs"></div></aside>
     <div id="viewerWrap">
       <div id="viewer" tabindex="0"><div id="pages"></div></div>

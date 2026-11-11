@@ -3,6 +3,7 @@ import * as pdfjsLib from './vendor/pdf.min.mjs';
 import {
   importAnnotations, buildPdf, HIGHLIGHT_COLORS, newId, wrapLines, TEXT_PAD, LINE_FACTOR, TEXT_FONTS, fontOf,
 } from './pdfio.js';
+import { loadOutline, flatten, setInitialOpen } from './outline.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = './vendor/pdf.worker.min.mjs';
 const PDFJS_OPTS = {
@@ -48,6 +49,7 @@ const ICONS = {
   fitW: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 12 3-3m-3 3 3 3m-3-3h10m0 0-3-3m3 3-3 3"/>',
   fitP: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/>',
   search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m21 21-5.5-5.5"/>',
+  outline: '<path d="M4 6h2M4 12h2M4 18h2"/><path d="M9 6h11M12 12h8M12 18h8"/>',
   thumbs: '<rect x="3" y="3" width="7" height="8" rx="1"/><rect x="3" y="13" width="7" height="8" rx="1"/><path d="M14 5h7M14 9h5M14 15h7M14 19h5"/>',
   up: '<path d="m6 15 6-6 6 6"/>',
   down: '<path d="m6 9 6 6 6-6"/>',
@@ -232,7 +234,173 @@ function activate(i) {
   scheduleRender();
 }
 
+// ---------------------------------------------------------------- side panels & outline
+const outlinePanel = $('#outlinePanel');
+const outlineBody = $('#outlineBody');
+const outlineCache = new WeakMap(); // pdf -> Promise<{ auto, items }>
+let olRows = new Map(); // item -> row element
+let olFlat = [];
+let olCurrent = null;
+
+function setPanel(which, show) {
+  const el = which === 'thumbs' ? sidebar : outlinePanel;
+  el.classList.toggle('hidden', !show);
+  $$(`[data-cmd=${which === 'thumbs' ? 'toggleThumbs' : 'toggleOutline'}]`).forEach((b) => {
+    if (b.classList.contains('big')) b.classList.toggle('active', show);
+  });
+  try {
+    localStorage.setItem(`pdfacil.show.${which}`, show ? '1' : '0');
+  } catch {}
+  if (which === 'outline' && show) renderOutline();
+  if (which === 'thumbs' && show) updateThumbClasses(true);
+  if (S.pdf && S.fitMode) setTimeout(applyFit, 0);
+}
+
+async function renderOutline() {
+  if (outlinePanel.classList.contains('hidden')) return;
+  const pdf = S.pdf;
+  olRows = new Map();
+  olFlat = [];
+  olCurrent = null;
+  outlineBody.innerHTML = '';
+  $('#outlineNote').textContent = '';
+  if (!pdf) {
+    outlineBody.innerHTML = '<div class="ol-empty">Open a PDF to see its outline.</div>';
+    return;
+  }
+  if (!outlineCache.has(pdf)) {
+    const pages = S.pdfPages;
+    const textCache = S.textCache;
+    const getText = (src) => {
+      if (!textCache.has(src)) textCache.set(src, pages[src].getTextContent());
+      return textCache.get(src);
+    };
+    const progress = (k, n) => {
+      if (S.pdf === pdf) outlineBody.innerHTML = `<div class="ol-empty">Looking for headings… (page ${k + 1} of ${n})</div>`;
+    };
+    outlineCache.set(pdf, loadOutline(pdf, pages, getText, progress).then((o) => {
+      setInitialOpen(o.items);
+      return o;
+    }));
+    outlineBody.innerHTML = '<div class="ol-empty">Reading outline…</div>';
+  }
+  let ol;
+  try {
+    ol = await outlineCache.get(pdf);
+  } catch (e) {
+    console.error(e);
+    ol = { auto: false, items: [] };
+  }
+  if (S.pdf !== pdf || outlinePanel.classList.contains('hidden')) return;
+  outlineBody.innerHTML = '';
+  if (!ol.items.length) {
+    outlineBody.innerHTML = '<div class="ol-empty">This PDF has no built-in outline, and no headings could be detected.</div>';
+    return;
+  }
+  if (ol.auto) $('#outlineNote').textContent = 'This PDF has no built-in outline. These headings were detected from the text size.';
+  olFlat = flatten(ol.items);
+  const build = (items, parentEl) => {
+    for (const it of items) {
+      const row = document.createElement('div');
+      row.className = `ol-row lvl${it.level}` + (it.bold ? ' bold' : '') + (it.italic ? ' italic' : '') + (!it.target && !it.url ? ' nolink' : '');
+      row.style.paddingLeft = `${4 + (it.level - 1) * 14}px`;
+      row.title = it.title;
+      row.innerHTML = '<span class="ol-tw"></span><span class="ol-title"></span>';
+      row.querySelector('.ol-title').textContent = it.title;
+      const tw = row.querySelector('.ol-tw');
+      const kids = document.createElement('div');
+      kids.className = 'ol-kids' + (it.open ? '' : ' closed');
+      if (it.children.length) {
+        tw.textContent = it.open ? '▾' : '▸';
+        tw.onclick = (e) => {
+          e.stopPropagation();
+          it.open = !it.open;
+          tw.textContent = it.open ? '▾' : '▸';
+          kids.classList.toggle('closed', !it.open);
+          highlightOutline(true);
+        };
+      }
+      row.onclick = () => {
+        if (it.target) goToTarget(it.target);
+        else if (it.url) window.open(it.url);
+      };
+      olRows.set(it, row);
+      parentEl.append(row, kids);
+      build(it.children, kids);
+    }
+  };
+  build(ol.items, outlineBody);
+  highlightOutline(true);
+}
+
+function modelIndexForSrc(src) {
+  let i = S.model.pages.findIndex((p) => p.src >= src);
+  if (i < 0) i = S.model.pages.length - 1;
+  return i;
+}
+
+/** Vertical position (in viewer scroll coordinates) of an outline target. */
+function targetY(t) {
+  const i = modelIndexForSrc(t.src);
+  const pe = S.pe[i];
+  if (!pe) return null;
+  let y = 0;
+  if (S.model.pages[i].src === t.src && t.top != null) {
+    const [, yy] = viewportFor(i).convertToViewportPoint(t.left ?? 0, t.top);
+    y = Math.max(0, Math.min(pe.el.offsetHeight, yy));
+  }
+  return { i, y: pe.el.offsetTop + y };
+}
+
+function goToTarget(t) {
+  const r = targetY(t);
+  if (!r) return;
+  viewer.scrollTo({ top: Math.max(0, r.y - 12) });
+  S.selPages = new Set([r.i]);
+  updateCurrent();
+  updateThumbClasses(true);
+  highlightOutline(true);
+}
+
+let olTimer = null;
+function highlightOutline(now = false) {
+  if (outlinePanel.classList.contains('hidden') || !olFlat.length) return;
+  if (!now) {
+    if (olTimer) return;
+    olTimer = setTimeout(() => {
+      olTimer = null;
+      highlightOutline(true);
+    }, 120);
+    return;
+  }
+  const pos = viewer.scrollTop + 40;
+  let cur = null;
+  let curY = -Infinity;
+  for (const it of olFlat) {
+    if (!it.target) continue;
+    const r = targetY(it.target);
+    if (r && r.y <= pos && r.y >= curY) {
+      cur = it;
+      curY = r.y;
+    }
+  }
+  // If the item is inside a closed branch, mark its nearest visible ancestor.
+  let show = cur;
+  for (let p = cur?.parent; p; p = p.parent) if (!p.open) show = p;
+  if (show === olCurrent) return;
+  olRows.get(olCurrent)?.classList.remove('current');
+  olCurrent = show;
+  const row = olRows.get(show);
+  if (row) {
+    row.classList.add('current');
+    const b = outlineBody.getBoundingClientRect();
+    const rb = row.getBoundingClientRect();
+    if (rb.top < b.top || rb.bottom > b.bottom) row.scrollIntoView({ block: 'nearest' });
+  }
+}
+
 function afterDocSwitch() {
+  renderOutline();
   const n = S.model.pages.length;
   document.body.classList.toggle('nodoc', !S.pdf);
   $('#welcome').hidden = !!S.pdf;
@@ -1316,6 +1484,7 @@ function updateCurrent() {
 }
 viewer.addEventListener('scroll', () => {
   updateCurrent();
+  highlightOutline();
 });
 
 function goToPage(i, smooth = false) {
@@ -1993,11 +2162,8 @@ const commands = {
   findNext: () => showResult(S.search.idx + 1),
   findPrev: () => showResult(S.search.idx - 1),
   findClose: closeSearch,
-  toggleThumbs: () => {
-    sidebar.classList.toggle('hidden');
-    $$('[data-cmd=toggleThumbs]').forEach((b) => b.classList.toggle('active', !sidebar.classList.contains('hidden')));
-    if (S.fitMode) setTimeout(applyFit, 0);
-  },
+  toggleThumbs: () => setPanel('thumbs', sidebar.classList.contains('hidden')),
+  toggleOutline: () => setPanel('outline', outlinePanel.classList.contains('hidden')),
 };
 
 document.addEventListener('click', (e) => {
@@ -2210,6 +2376,14 @@ $('#aboutDlg').addEventListener('mousedown', (e) => {
   if (e.target.id === 'aboutDlg') commands.closeAbout();
 });
 api.version().then((v) => ($('#aboutVersion').textContent = v));
+
+for (const which of ['thumbs', 'outline']) {
+  let v = null;
+  try {
+    v = localStorage.getItem(`pdfacil.show.${which}`);
+  } catch {}
+  if (v !== null) setPanel(which, v === '1');
+}
 
 document.body.classList.add('nodoc', 'tool-select');
 buildSwatches();
