@@ -10,8 +10,10 @@ Tip: right-click any PDF > Open with > Choose another app > browse to the exe, t
 - **Home** (opens first): Open, Save, Print, Delete page, Rotate left/right, Select, Highlight, Text, Comment, Thumbnails
 - **File**: Open, Save, Save As, Print, Recent, Close
 - **Pages**: First/Previous/Next/Last, Go to page, Rotate left/right, Delete page
-- **Comment**: Select, Highlight, Text, Comment (sticky note), colors, font size, Remove
+- **Comment**: Select, Highlight, Text, Comment (sticky note), colors, font, font size, Remove
 - **View**: Zoom in/out, 100%, Fit width, Fit page, Search, Thumbnails
+- **Text formatting**: right-click a text box you typed to change its font (Arial, Times New Roman, Courier New), size and color
+- **Hide the ribbon**: the arrow at the top right (or Ctrl+F1, or double-click a tab) collapses the ribbon for more reading space; click a tab to use it temporarily
 - **Tabs**: open several PDFs at once; each gets a tab (Ctrl+Tab to switch, Ctrl+W or middle-click to close)
 - **About** (File tab or F1): designed by Uri Simonsohn, created with Claude Opus 5.5 (High), November 11, 2026
 
@@ -29,6 +31,7 @@ Tip: right-click any PDF > Open with > Choose another app > browse to the exe, t
 | Esc | Finish editing, back to Select |
 | Ctrl+Tab / Ctrl+Shift+Tab | Next / previous file tab |
 | Ctrl+W | Close current tab |
+| Ctrl+F1 | Hide / show the ribbon |
 | F1 | About PDFacil |
 
 Highlights, text boxes and comments are saved as standard PDF annotations, so Acrobat, Edge and Chrome show them. Reopening a file in PDFacil makes them editable again.

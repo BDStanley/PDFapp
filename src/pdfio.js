@@ -183,6 +183,15 @@ export function wrapLines(text, maxWidth, widthOf) {
   return out;
 }
 
+// Text box fonts. In the PDF they are the standard 14 fonts (no embedding needed);
+// on screen we use the metric-compatible Windows fonts so line wrapping matches.
+export const TEXT_FONTS = {
+  helv: { label: 'Arial', css: 'Helvetica, Arial, sans-serif', std: 'Helvetica', res: 'Helv' },
+  times: { label: 'Times New Roman', css: '"Times New Roman", Times, serif', std: 'TimesRoman', res: 'TiRo' },
+  courier: { label: 'Courier New', css: '"Courier New", Courier, monospace', std: 'Courier', res: 'Cour' },
+};
+export const fontOf = (a) => TEXT_FONTS[a.font] || TEXT_FONTS.helv;
+
 export const TEXT_PAD = 2; // points of padding inside a text box
 export const LINE_FACTOR = 1.2;
 
@@ -199,12 +208,12 @@ function sanitizeForFont(font, s) {
   return out;
 }
 
-function textAP(ctx, a, font) {
+function textAP(ctx, a, font, resName) {
   const { w, h, size, color } = a;
   const lines = wrapLines(sanitizeForFont(font, a.text), w - 2 * TEXT_PAD, (t) => font.widthOfTextAtSize(t, size));
   const lead = size * LINE_FACTOR;
   const ascent = font.heightAtSize(size, { descender: false });
-  const ops = [pushGraphicsState(), beginText(), setFontAndSize('Helv', size), setFillingRgbColor(...color)];
+  const ops = [pushGraphicsState(), beginText(), setFontAndSize(resName, size), setFillingRgbColor(...color)];
   // First baseline: top padding + half the extra leading + ascent (matches CSS line-height layout).
   let y = h - TEXT_PAD - (lead - size) / 2 - ascent;
   ops.push(moveText(TEXT_PAD, y));
@@ -219,7 +228,7 @@ function textAP(ctx, a, font) {
   const stream = ctx.formXObject(ops, {
     BBox: [0, 0, w, h],
     Matrix: [c, s, -s, c, 0, 0],
-    Resources: { Font: { Helv: font.ref } },
+    Resources: { Font: { [resName]: font.ref } },
   });
   return ctx.register(stream);
 }
@@ -254,7 +263,7 @@ export async function buildPdf(baseBytes, model, author) {
   const doc = await PDFDocument.load(baseBytes, { updateMetadata: false });
   const ctx = doc.context;
   const pages = doc.getPages();
-  let font = null;
+  const fonts = {};
   const now = PDFString.fromDate(new Date());
   const authorStr = PDFHexString.fromText(author || 'PDFacil');
 
@@ -279,14 +288,16 @@ export async function buildPdf(baseBytes, model, author) {
         dict.set(PDFName.of('Contents'), PDFHexString.fromText(a.contents || ''));
       } else if (a.type === 'text') {
         if (!a.text.trim()) continue;
-        font ||= await doc.embedFont(StandardFonts.Helvetica);
+        const f = fontOf(a);
+        fonts[f.std] ||= await doc.embedFont(StandardFonts[f.std]);
+        const font = fonts[f.std];
         const [r, g, b] = a.color;
         dict = ctx.obj({
           Type: 'Annot', Subtype: 'FreeText', Rect: textBoxRect(a), F: 4,
           BS: { W: 0 }, Border: [0, 0, 0],
-          AP: { N: textAP(ctx, a, font) },
+          AP: { N: textAP(ctx, a, font, f.res) },
         });
-        dict.set(PDFName.of('DA'), PDFString.of(`/Helv ${a.size} Tf ${r} ${g} ${b} rg`));
+        dict.set(PDFName.of('DA'), PDFString.of(`/${f.res} ${a.size} Tf ${r} ${g} ${b} rg`));
         dict.set(PDFName.of('Contents'), PDFHexString.fromText(a.text));
         if (a.rot) dict.set(PDFName.of('Rotate'), PDFNumber.of(a.rot));
       } else continue;

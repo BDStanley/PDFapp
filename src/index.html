@@ -23,19 +23,19 @@
       <button class="tab" data-tab="comment">Comment</button>
       <button class="tab" data-tab="view">View</button>
     </nav>
+    <button id="ribbonToggle" title="Hide the ribbon (Ctrl+F1)"></button>
     <div class="brand">PDFacil</div>
   </header>
 
   <!-- Ribbon -->
   <section id="ribbon">
-    <div class="panel active" data-panel="home">
+    <div class="panel active compact" data-panel="home">
       <div class="group">
         <div class="items">
           <button class="big" data-cmd="open" data-icon="open" title="Open a PDF (Ctrl+O)">Open</button>
           <button class="big" data-cmd="save" data-icon="save" title="Save (Ctrl+S)">Save</button>
           <button class="big" data-cmd="print" data-icon="print" title="Print (Ctrl+P)">Print</button>
         </div>
-        <div class="glabel">File</div>
       </div>
       <div class="group">
         <div class="items">
@@ -43,7 +43,6 @@
           <button class="big" data-cmd="rotateLeft" data-icon="rotL" title="Rotate selected page(s) left">Rotate Left</button>
           <button class="big" data-cmd="rotateRight" data-icon="rotR" title="Rotate selected page(s) right">Rotate Right</button>
         </div>
-        <div class="glabel">Pages</div>
       </div>
       <div class="group">
         <div class="items">
@@ -52,13 +51,11 @@
           <button class="big tool" data-tool="text" data-icon="text" title="Type text on the page: click where it should go (T)">Text</button>
           <button class="big tool" data-tool="note" data-icon="note" title="Add a comment: click where it should go (N)">Comment</button>
         </div>
-        <div class="glabel">Tools</div>
       </div>
       <div class="group">
         <div class="items">
           <button class="big toggle active" data-cmd="toggleThumbs" data-icon="thumbs" title="Show or hide page thumbnails">Thumbnails</button>
         </div>
-        <div class="glabel">Show</div>
       </div>
     </div>
 
@@ -143,6 +140,10 @@
       </div>
       <div class="group">
         <div class="items">
+          <div class="stack">
+            <label class="small-label">Font</label>
+            <select id="textFont" title="Font"></select>
+          </div>
           <div class="stack">
             <label class="small-label">Size</label>
             <select id="textSize" title="Font size">

@@ -1,7 +1,7 @@
 // PDFacil - renderer
 import * as pdfjsLib from './vendor/pdf.min.mjs';
 import {
-  importAnnotations, buildPdf, HIGHLIGHT_COLORS, newId, wrapLines, TEXT_PAD, LINE_FACTOR,
+  importAnnotations, buildPdf, HIGHLIGHT_COLORS, newId, wrapLines, TEXT_PAD, LINE_FACTOR, TEXT_FONTS, fontOf,
 } from './pdfio.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = './vendor/pdf.worker.min.mjs';
@@ -52,6 +52,8 @@ const ICONS = {
   up: '<path d="m6 15 6-6 6 6"/>',
   down: '<path d="m6 9 6 6 6-6"/>',
   x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  chevUp: '<path d="m6 15 6-6 6 6"/>',
+  chevDown: '<path d="m6 9 6 6 6-6"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7.5v.01" stroke-width="2.4"/>',
 };
 const svg = (name) =>
@@ -69,6 +71,12 @@ const NOTE_SVG = (rgb) => {
 
 // ---------------------------------------------------------------- state
 const TEXT_COLORS = { black: [0, 0, 0], red: [0.8, 0.1, 0.1], blue: [0.1, 0.3, 0.85], green: [0.1, 0.5, 0.2] };
+// Extra colors offered in the right-click menu of a text box.
+const MENU_TEXT_COLORS = {
+  black: [0, 0, 0], gray: [0.45, 0.45, 0.45], red: [0.8, 0.1, 0.1], orange: [0.9, 0.45, 0.05],
+  green: [0.1, 0.5, 0.2], blue: [0.1, 0.3, 0.85], purple: [0.5, 0.2, 0.7],
+};
+const TEXT_SIZES = [6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 60, 72];
 const NOTE_COLOR = [1, 0.84, 0.2];
 
 const S = {
@@ -89,6 +97,7 @@ const S = {
   hlColor: 'yellow',
   textColor: 'black',
   textSize: 12,
+  textFont: 'helv',
   current: 0,
   selPages: new Set(),
   sel: null, // { page, id }
@@ -679,6 +688,7 @@ function makeTextEl(i, a, vp, rot, selected) {
     width: `${a.w * S.scale}px`,
     minHeight: `${a.h * S.scale}px`,
     fontSize: `${a.size * S.scale}px`,
+    fontFamily: fontOf(a).css,
     padding: `${TEXT_PAD * S.scale}px`,
     color: rgbCss(a.color),
     lineHeight: LINE_FACTOR,
@@ -968,7 +978,7 @@ pagesDiv.addEventListener('mousedown', (e) => {
     const w = Math.max(60, Math.min(220, avail));
     const a = {
       id: newId(), type: 'text', x: px, y: py, w, h: S.textSize * LINE_FACTOR + 2 * TEXT_PAD,
-      rot: effRot(i), text: '', size: S.textSize, color: [...TEXT_COLORS[S.textColor]],
+      rot: effRot(i), text: '', size: S.textSize, font: S.textFont, color: [...TEXT_COLORS[S.textColor]],
     };
     const before = snapshot();
     addAnnot(i, a);
@@ -1129,6 +1139,10 @@ function showMenu(x, y, items) {
       ctxMenu.insertAdjacentHTML('beforeend', '<div class="sep"></div>');
       continue;
     }
+    if (it.el) {
+      ctxMenu.append(it.el);
+      continue;
+    }
     const b = document.createElement('button');
     b.className = 'mi' + (it.danger ? ' danger' : '');
     b.innerHTML = `<span></span><small>${it.key || ''}</small>`;
@@ -1171,7 +1185,10 @@ pagesDiv.addEventListener('contextmenu', (e) => {
   if (id) {
     select(i, id);
     const a = findAnnot(i, id);
-    if (a.type === 'text') items.push({ label: 'Edit text', run: () => startEdit(i, id) });
+    if (a.type === 'text') {
+      items.push({ label: 'Edit text', run: () => startEdit(i, id) });
+      items.push({ el: textFormatPanel(i, id) });
+    }
     if (a.type === 'note') items.push({ label: 'Open comment', run: () => openNotePopup(i, id) });
     if (a.type === 'highlight') {
       for (const [name, c] of Object.entries(HIGHLIGHT_COLORS)) {
@@ -1186,6 +1203,87 @@ pagesDiv.addEventListener('contextmenu', (e) => {
   items.push({ label: 'Delete page', danger: true, run: () => deletePages([i]) });
   showMenu(e.clientX, e.clientY, items);
 });
+
+// Font, size and color controls shown in the right-click menu of a text box.
+function textFormatPanel(i, id) {
+  const a = findAnnot(i, id);
+  const panel = document.createElement('div');
+  panel.className = 'fmt-panel';
+  panel.innerHTML = `
+    <div class="fmt-row"><label>Font</label><select class="fmt-font"></select></div>
+    <div class="fmt-row"><label>Size</label><select class="fmt-size"></select>
+      <button class="fmt-step" data-d="-1" title="Smaller">A&#8722;</button><button class="fmt-step" data-d="1" title="Bigger">A+</button></div>
+    <div class="fmt-row"><label>Color</label><div class="fmt-colors"></div></div>`;
+  const fontSel = panel.querySelector('.fmt-font');
+  for (const [key, f] of Object.entries(TEXT_FONTS)) {
+    const o = document.createElement('option');
+    o.value = key;
+    o.textContent = f.label;
+    o.style.fontFamily = f.css;
+    fontSel.append(o);
+  }
+  const sizeSel = panel.querySelector('.fmt-size');
+  const fillSizes = (cur) => {
+    sizeSel.innerHTML = '';
+    const sizes = [...new Set([...TEXT_SIZES, cur])].sort((x, y) => x - y);
+    for (const n of sizes) sizeSel.add(new Option(String(n), String(n)));
+    sizeSel.value = String(cur);
+  };
+  const colors = panel.querySelector('.fmt-colors');
+  const same = (c1, c2) => c1.every((v, k) => Math.abs(v - c2[k]) < 0.01);
+  const sync = () => {
+    const cur = findAnnot(i, id);
+    if (!cur) return;
+    fontSel.value = cur.font in TEXT_FONTS ? cur.font : 'helv';
+    fillSizes(cur.size);
+    colors.querySelectorAll('.swatch').forEach((b) => b.classList.toggle('active', same(b._c, cur.color)));
+  };
+  for (const [name, c] of Object.entries(MENU_TEXT_COLORS)) {
+    const b = document.createElement('button');
+    b.className = 'swatch';
+    b.title = name[0].toUpperCase() + name.slice(1);
+    b.style.background = rgbCss(c);
+    b._c = c;
+    b.onclick = () => {
+      setTextProps(i, id, { color: [...c] });
+      sync();
+    };
+    colors.append(b);
+  }
+  const custom = document.createElement('input');
+  custom.type = 'color';
+  custom.title = 'More colors';
+  custom.className = 'fmt-custom';
+  const toHex = (c) => '#' + c.map((v) => Math.round(v * 255).toString(16).padStart(2, '0')).join('');
+  custom.value = toHex(a.color);
+  custom.onchange = () => {
+    const h = custom.value;
+    const c = [1, 3, 5].map((k) => Math.round((parseInt(h.slice(k, k + 2), 16) / 255) * 1000) / 1000);
+    setTextProps(i, id, { color: c });
+    sync();
+  };
+  colors.append(custom);
+  fontSel.onchange = () => {
+    setTextProps(i, id, { font: fontSel.value });
+    sync();
+  };
+  sizeSel.onchange = () => {
+    setTextProps(i, id, { size: +sizeSel.value });
+    sync();
+  };
+  panel.querySelectorAll('.fmt-step').forEach((b) => {
+    b.onclick = () => {
+      const cur = findAnnot(i, id);
+      const d = +b.dataset.d;
+      const next = d > 0 ? TEXT_SIZES.find((n) => n > cur.size) ?? cur.size + 4 : [...TEXT_SIZES].reverse().find((n) => n < cur.size) ?? Math.max(4, cur.size - 1);
+      setTextProps(i, id, { size: next });
+      sync();
+    };
+  });
+  panel.addEventListener('mousedown', (e) => e.stopPropagation());
+  sync();
+  return panel;
+}
 
 function recolor(i, id, c) {
   const a = findAnnot(i, id);
@@ -1424,7 +1522,7 @@ function drawAnnotsOnCanvas(ctx, vp, i) {
       ctx.translate(x, y);
       ctx.rotate((((rot - a.rot + 360) % 360) * Math.PI) / 180);
       const fs = a.size * vp.scale;
-      ctx.font = `${fs}px Helvetica, Arial, sans-serif`;
+      ctx.font = `${fs}px ${fontOf(a).css}`;
       ctx.fillStyle = rgbCss(a.color);
       ctx.textBaseline = 'top';
       const lines = wrapLines(a.text, (a.w - 2 * TEXT_PAD) * vp.scale, (t) => ctx.measureText(t).width);
@@ -1778,6 +1876,19 @@ function buildSwatches() {
     };
     tx.append(b);
   }
+  const fontSel = $('#textFont');
+  for (const [key, f] of Object.entries(TEXT_FONTS)) {
+    const o = document.createElement('option');
+    o.value = key;
+    o.textContent = f.label;
+    o.style.fontFamily = f.css;
+    fontSel.append(o);
+  }
+  fontSel.value = S.textFont;
+  fontSel.addEventListener('change', (e) => {
+    S.textFont = e.target.value;
+    applyTextStyle({ font: S.textFont });
+  });
   $('#textSize').addEventListener('change', (e) => {
     S.textSize = +e.target.value;
     applyTextStyle({ size: S.textSize });
@@ -1787,7 +1898,10 @@ function buildSwatches() {
 function applyTextStyle(props) {
   const target = S.editing || S.sel;
   if (!target) return;
-  const { page, id } = target;
+  setTextProps(target.page, target.id, props);
+}
+
+function setTextProps(page, id, props) {
   commitEdits();
   const a = findAnnot(page, id);
   if (a?.type !== 'text' || !guardEdit()) return;
@@ -1896,12 +2010,63 @@ document.addEventListener('click', (e) => {
   if (t && S.pdf) setTool(t.dataset.tool);
 });
 
-$$('.tab').forEach((t) =>
+// ---------------------------------------------------------------- ribbon tabs & collapse
+let ribbonCollapsed = false;
+try {
+  ribbonCollapsed = localStorage.getItem('pdfacil.ribbonCollapsed') === '1';
+} catch {}
+
+function showPanel(tab) {
+  $$('.tab').forEach((x) => x.classList.toggle('active', x.dataset.tab === tab));
+  $$('.panel').forEach((p) => p.classList.toggle('active', p.dataset.panel === tab));
+}
+
+function setPeek(on) {
+  document.body.classList.toggle('ribbon-peek', on);
+  $$('.tab').forEach((x) => x.classList.toggle('peeking', on && x.classList.contains('active')));
+}
+
+function setRibbonCollapsed(v) {
+  ribbonCollapsed = v;
+  document.body.classList.toggle('ribbon-collapsed', v);
+  setPeek(false);
+  const b = $('#ribbonToggle');
+  b.innerHTML = svg(v ? 'chevDown' : 'chevUp');
+  b.title = v ? 'Show the ribbon (Ctrl+F1)' : 'Hide the ribbon (Ctrl+F1)';
+  try {
+    localStorage.setItem('pdfacil.ribbonCollapsed', v ? '1' : '0');
+  } catch {}
+  // The document area changed size.
+  if (S.pdf && S.fitMode) setTimeout(applyFit, 0);
+}
+
+$$('.tab').forEach((t) => {
   t.addEventListener('click', () => {
-    $$('.tab').forEach((x) => x.classList.toggle('active', x === t));
-    $$('.panel').forEach((p) => p.classList.toggle('active', p.dataset.panel === t.dataset.tab));
-  }),
-);
+    if (ribbonCollapsed) {
+      // Collapsed: show the ribbon temporarily on top of the document.
+      const same = t.classList.contains('active') && document.body.classList.contains('ribbon-peek');
+      showPanel(t.dataset.tab);
+      setPeek(!same);
+    } else {
+      showPanel(t.dataset.tab);
+    }
+  });
+  t.addEventListener('dblclick', () => setRibbonCollapsed(!ribbonCollapsed));
+});
+$('#ribbonToggle').addEventListener('click', () => setRibbonCollapsed(!ribbonCollapsed));
+
+// Hide the temporary ribbon when clicking elsewhere, or after using one of its buttons.
+document.addEventListener('mousedown', (e) => {
+  if (!document.body.classList.contains('ribbon-peek')) return;
+  if (e.target.closest('#ribbon') || e.target.closest('#tabs') || e.target.closest('.menu')) return;
+  setPeek(false);
+});
+$('#ribbon').addEventListener('click', (e) => {
+  if (!document.body.classList.contains('ribbon-peek')) return;
+  const b = e.target.closest('button[data-cmd], button[data-tool]');
+  if (b && b.dataset.cmd !== 'recentMenu') setTimeout(() => setPeek(false), 0);
+});
+setRibbonCollapsed(ribbonCollapsed);
 
 const isEditable = (el) => el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
 
@@ -1910,6 +2075,11 @@ window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
   const inEdit = isEditable(document.activeElement);
 
+  if (e.key === 'F1' && ctrl) {
+    e.preventDefault();
+    setRibbonCollapsed(!ribbonCollapsed);
+    return;
+  }
   if (ctrl && (e.key === 'Tab' || e.key === 'PageDown' || e.key === 'PageUp')) {
     e.preventDefault();
     switchTab(e.key === 'PageUp' || (e.key === 'Tab' && e.shiftKey) ? -1 : 1);
