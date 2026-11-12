@@ -234,20 +234,47 @@
     bubble.hidden = true;
     bubble.innerHTML = '<button data-b="hl">Highlight</button><button data-b="copy">Copy</button>';
     document.body.append(bubble);
-    bubble.addEventListener('pointerdown', (e) => e.preventDefault()); // keep the selection while tapping
-    bubble.addEventListener('click', (e) => {
-      const b = e.target.closest('button');
-      if (!b) return;
+    // The selection as last made on a page. A tap on the bar can clear the live selection before the tap
+    // arrives (the iPhone's own Copy/Translate menu is dismissed by the same tap), so the bar works on this.
+    let lastRange = null;
+    const act = (which) => {
       const sel = window.getSelection();
-      if (b.dataset.b === 'hl') app()?.highlightSelection();
-      else if (sel) {
+      if (lastRange) {
+        sel.removeAllRanges();
+        sel.addRange(lastRange);
+      }
+      if (which === 'hl') app()?.highlightSelection();
+      else {
         api.copyText(sel.toString());
         sel.removeAllRanges();
       }
+      lastRange = null;
       bubble.hidden = true;
+    };
+    // Act when the finger lifts; preventing the touch keeps the selection and stops iOS taking the tap.
+    let touched = 0;
+    bubble.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
+    bubble.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      const b = e.target.closest('button');
+      if (!b) return;
+      touched = Date.now();
+      act(b.dataset.b);
+    }, { passive: false });
+    bubble.addEventListener('pointerdown', (e) => e.preventDefault()); // keep the selection while clicking
+    bubble.addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      if (!b || Date.now() - touched < 800) return;
+      act(b.dataset.b);
     });
     let selTimer;
     document.addEventListener('selectionchange', () => {
+      const s = window.getSelection();
+      if (s && s.rangeCount && !s.isCollapsed) {
+        const n = s.getRangeAt(0).commonAncestorContainer;
+        const el = n.nodeType === 1 ? n : n.parentElement;
+        if (el && el.closest('#pages')) lastRange = s.getRangeAt(0).cloneRange();
+      }
       clearTimeout(selTimer);
       selTimer = setTimeout(() => {
         const sel = window.getSelection();
