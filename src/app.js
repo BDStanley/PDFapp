@@ -1662,7 +1662,7 @@ async function drainThumbs() {
       box.innerHTML = '';
       box.append(c);
     } catch (e) {
-      console.error(e);
+      if (e?.name !== 'RenderingCancelledException') console.error(e);
     }
   }
   thumbBusy = false;
@@ -2088,31 +2088,78 @@ function setTextProps(page, id, props) {
 }
 
 // ---------------------------------------------------------------- recent files
+function formatWhen(t) {
+  if (!t) return '';
+  const d = new Date(t);
+  const now = new Date();
+  const time = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  const startOf = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((startOf(now) - startOf(d)) / 86400000);
+  if (days === 0) return `Today, ${time}`;
+  if (days === 1) return `Yesterday, ${time}`;
+  if (days < 7) return `${d.toLocaleDateString(undefined, { weekday: 'long' })}, ${time}`;
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 async function refreshRecent() {
   const list = await api.getRecent();
+  const split = (p) => {
+    const name = p.split(/[\\/]/).pop();
+    return { name, dir: p.slice(0, Math.max(0, p.length - name.length - 1)) };
+  };
+
+  // File > Recent dropdown: the 15 most recent.
   const menu = $('#recentMenu');
   menu.innerHTML = '';
-  const wr = $('#welcomeRecent');
-  wr.innerHTML = list.length ? '<h4>Recent</h4>' : '';
   if (!list.length) menu.innerHTML = '<div class="empty">No recent files</div>';
-  for (const p of list) {
-    const name = p.split(/[\\/]/).pop();
-    const dir = p.slice(0, p.length - name.length - 1);
-    for (const parent of [menu, wr]) {
-      const b = document.createElement('button');
-      b.className = 'mi';
-      b.title = p;
-      b.innerHTML = '<span></span><small></small>';
-      b.children[0].textContent = name;
-      b.children[1].textContent = dir;
-      b.onclick = () => {
-        hideMenus();
-        openPath(p);
-      };
-      parent.append(b);
-    }
+  for (const r of list.slice(0, 15)) {
+    const { name, dir } = split(r.path);
+    const b = document.createElement('button');
+    b.className = 'mi';
+    b.title = r.path;
+    b.innerHTML = '<span></span><small></small>';
+    b.children[0].textContent = name;
+    b.children[1].textContent = dir;
+    b.onclick = () => {
+      hideMenus();
+      openPath(r.path);
+    };
+    menu.append(b);
   }
+
+  // Start screen table: up to 100 files.
+  const tbody = $('#recentTable tbody');
+  tbody.innerHTML = '';
+  $('#recentEmpty').hidden = list.length > 0;
+  $('#recentTable').style.display = list.length ? '' : 'none';
+  $('#recentCount').textContent = list.length ? `${list.length} file${list.length > 1 ? 's' : ''}` : '';
+  list.forEach((r, k) => {
+    const { name, dir } = split(r.path);
+    const tr = document.createElement('tr');
+    tr.title = r.path;
+    tr.innerHTML = '<td class="n"></td><td class="dir"></td><td class="file"></td><td class="time"></td>';
+    tr.children[0].textContent = k + 1;
+    // Left-to-right marks keep the path readable while it is cut off at the start.
+    tr.children[1].textContent = `\u200E${dir}\u200E`;
+    tr.children[2].textContent = name;
+    tr.children[3].textContent = formatWhen(r.time);
+    if (r.time) tr.children[3].title = new Date(r.time).toLocaleString();
+    tr.onclick = () => openPath(r.path);
+    tr.oncontextmenu = (e) => {
+      e.preventDefault();
+      showMenu(e.clientX, e.clientY, [
+        { label: 'Open', run: () => openPath(r.path) },
+        { label: 'Remove from list', run: async () => { await api.removeRecent(r.path); refreshRecent(); } },
+      ]);
+    };
+    tbody.append(tr);
+  });
 }
+
+// Highlight the drop box while a file is dragged over the start screen.
+const dropBox = $('#dropBox');
+['dragenter', 'dragover'].forEach((ev) => dropBox.addEventListener(ev, () => dropBox.classList.add('over')));
+['dragleave', 'drop'].forEach((ev) => dropBox.addEventListener(ev, () => dropBox.classList.remove('over')));
 
 // ---------------------------------------------------------------- commands & keys
 const commands = {
@@ -2347,7 +2394,7 @@ let dragDepth = 0;
 window.addEventListener('dragenter', (e) => {
   if (![...(e.dataTransfer?.types || [])].includes('Files')) return;
   dragDepth++;
-  $('#dropOverlay').hidden = false;
+  if (S.pdf) $('#dropOverlay').hidden = false; // the start screen has its own drop box
 });
 window.addEventListener('dragleave', () => {
   dragDepth = Math.max(0, dragDepth - 1);

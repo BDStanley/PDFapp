@@ -12,6 +12,7 @@ Tip: right-click any PDF > Open with > Choose another app > browse to the exe, t
 - **Pages**: First/Previous/Next/Last, Go to page, Rotate left/right, Delete page
 - **Comment**: Select, Highlight, Text, Comment (sticky note), colors, font, font size, Remove
 - **View**: Zoom in/out, 100%, Fit width, Fit page, Search, Outline, Thumbnails
+- **Start screen**: a drop box with a Select button on the left, and a table of up to 100 recent files (folder, file, last opened) on the right. Right-click a row to remove it from the list
 - **Outline**: a clickable table of contents on the left. Uses the PDF's bookmarks; if it has none, headings are detected from the text size. The current section is highlighted as you scroll
 - **Text formatting**: right-click a text box you typed to change its font (Arial, Times New Roman, Courier New), size and color
 - **Hide the ribbon**: the arrow at the top right (or Ctrl+F1, or double-click a tab) collapses the ribbon for more reading space; click a tab to use it temporarily

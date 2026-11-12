@@ -213,11 +213,28 @@
       </div>
 
       <div id="welcome">
-        <div class="welcome-card">
-          <div class="logo">PDF<span>acil</span></div>
-          <p>Open a PDF to get started, or drop one anywhere on this window.</p>
-          <button class="primary" data-cmd="open">Open PDF…</button>
-          <div id="welcomeRecent"></div>
+        <div class="welcome-wrap">
+          <section id="dropBox">
+            <img src="../build/icon.png" alt="" class="drop-logo" />
+            <div class="drop-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+            </div>
+            <div class="drop-title">Drag and drop PDF files here</div>
+            <div class="drop-or">or</div>
+            <button class="blue-btn" data-cmd="open">Select</button>
+            <div class="drop-hint">You can open several files at once.</div>
+          </section>
+          <section id="recentBox">
+            <div class="recent-head"><span>Recent files</span><span id="recentCount"></span></div>
+            <div class="recent-scroll">
+              <table id="recentTable">
+                <colgroup><col class="c-n" /><col class="c-dir" /><col class="c-file" /><col class="c-time" /></colgroup>
+                <thead><tr><th>#</th><th>Folder</th><th>File</th><th>Last opened</th></tr></thead>
+                <tbody></tbody>
+              </table>
+              <div id="recentEmpty" hidden>No recent files yet. Files you open will be listed here.</div>
+            </div>
+          </section>
         </div>
       </div>
       <div id="dropOverlay" hidden><div>Drop PDF to open</div></div>

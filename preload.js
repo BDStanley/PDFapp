@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('api', {
   startupPath: () => ipcRenderer.invoke('startup-path'),
   version: () => ipcRenderer.invoke('app-version'),
   getRecent: () => ipcRenderer.invoke('get-recent'),
+  removeRecent: (p) => ipcRenderer.invoke('remove-recent', p),
   openDialog: () => ipcRenderer.invoke('open-dialog'),
   readFile: (p) => ipcRenderer.invoke('read-file', p),
   saveDialog: (suggested) => ipcRenderer.invoke('save-dialog', suggested),

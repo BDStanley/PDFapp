@@ -10,22 +10,44 @@ let pendingOpenPath = null;
 
 const recentFile = () => path.join(app.getPath('userData'), 'recent.json');
 
-function readRecent() {
+const RECENT_MAX = 100;
+
+// Recent files: [{ path, time }] newest first. Older versions stored plain path strings.
+function readRecentRaw() {
   try {
     const list = JSON.parse(fs.readFileSync(recentFile(), 'utf8'));
-    return list.filter((p) => fs.existsSync(p)).slice(0, 10);
+    return list.map((x) => (typeof x === 'string' ? { path: x, time: null } : x)).filter((x) => x && x.path);
   } catch {
     return [];
   }
 }
 
-function addRecent(p) {
-  const list = [p, ...readRecent().filter((x) => x !== p)].slice(0, 10);
+function writeRecent(list) {
   try {
     fs.mkdirSync(path.dirname(recentFile()), { recursive: true });
-    fs.writeFileSync(recentFile(), JSON.stringify(list));
+    fs.writeFileSync(recentFile(), JSON.stringify(list.slice(0, RECENT_MAX)));
   } catch {}
-  return list;
+}
+
+function readRecent() {
+  const seen = new Set();
+  return readRecentRaw()
+    .filter((x) => {
+      const k = x.path.toLowerCase();
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return fs.existsSync(x.path);
+    })
+    .slice(0, RECENT_MAX);
+}
+
+function addRecent(p) {
+  const key = p.toLowerCase();
+  writeRecent([{ path: p, time: Date.now() }, ...readRecentRaw().filter((x) => x.path.toLowerCase() !== key)]);
+}
+
+function removeRecent(p) {
+  writeRecent(readRecentRaw().filter((x) => x.path !== p));
 }
 
 function pdfArg(argv) {
@@ -108,6 +130,7 @@ ipcMain.handle('startup-path', () => {
 });
 
 ipcMain.handle('get-recent', () => readRecent());
+ipcMain.handle('remove-recent', (_e, p) => removeRecent(p));
 ipcMain.handle('app-version', () => app.getVersion());
 
 ipcMain.handle('open-dialog', async () => {

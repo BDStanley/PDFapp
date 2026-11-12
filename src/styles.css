@@ -183,21 +183,40 @@ body.tool-highlight .textLayer ::selection { background: rgba(255, 220, 0, .45);
 #searchbar button:hover { background: #eee; }
 #searchbar button svg { width: 16px; height: 16px; }
 
-/* welcome */
-#welcome { position: absolute; inset: 0; display: grid; place-items: center; background: var(--bg); z-index: 20; }
+/* welcome: drop box on the left, recent files table on the right */
+#welcome { position: absolute; inset: 0; background: var(--bg); z-index: 20; display: flex; padding: 28px; }
 #welcome[hidden] { display: none; }
-.welcome-card { background: #fff; border-radius: 12px; padding: 36px 44px; box-shadow: 0 4px 24px rgba(0,0,0,.12); text-align: center; min-width: 440px; max-width: 640px; }
-.logo { font-size: 40px; font-weight: 700; color: var(--brand); letter-spacing: -.5px; }
-.logo span { color: #333; font-weight: 400; }
-.welcome-card p { color: var(--muted); }
-button.primary { background: var(--brand); color: #fff; border: 0; border-radius: 6px; padding: 10px 26px; font-size: 14px; cursor: pointer; }
-button.primary:hover { background: var(--brand-dark); }
-#welcomeRecent { margin-top: 22px; text-align: left; }
-#welcomeRecent h4 { margin: 0 0 6px; font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
-#welcomeRecent .mi { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 6px 8px; border-radius: 4px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#welcomeRecent .mi:hover { background: #f2f2f2; }
-#welcomeRecent .mi small { color: var(--muted); margin-left: 8px; }
-
+.welcome-wrap { flex: 1; display: flex; gap: 22px; min-height: 0; max-width: 1500px; margin: 0 auto; width: 100%; }
+#dropBox {
+  width: 340px; flex: none; background: #fff; border: 2px dashed #b9c6dc; border-radius: 14px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px; padding: 24px; text-align: center; transition: background .15s, border-color .15s;
+}
+#dropBox.over { background: #eef4ff; border-color: #1a5fd0; }
+.drop-logo { width: 64px; height: 64px; margin-bottom: 8px; }
+.drop-icon svg { width: 44px; height: 44px; color: #1a5fd0; }
+.drop-title { font-size: 16px; font-weight: 600; color: #333; }
+.drop-or { color: var(--muted); font-size: 12px; }
+.blue-btn { background: #1a5fd0; color: #fff; border: 0; border-radius: 6px; padding: 9px 34px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.blue-btn:hover { background: #154ea9; }
+.drop-hint { color: var(--muted); font-size: 11.5px; margin-top: 6px; }
+#recentBox { container-type: inline-size; flex: 1; min-width: 0; background: #f1f1f1; border: 1px solid #dcdcdc; border-radius: 14px; display: flex; flex-direction: column; overflow: hidden; }
+.recent-head { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 16px 8px; color: #555; font-weight: 600; }
+#recentCount { font-weight: 400; font-size: 12px; color: #888; }
+.recent-scroll { flex: 1; overflow: auto; min-height: 0; }
+#recentTable { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12.5px; color: #555; }
+#recentTable col.c-n { width: 44px; }
+#recentTable col.c-dir { width: 32%; }
+#recentTable col.c-time { width: 150px; }
+#recentTable th { position: sticky; top: 0; background: #e6e6e6; text-align: left; font-weight: 600; color: #666; padding: 6px 10px; border-bottom: 1px solid #d6d6d6; font-size: 12px; }
+#recentTable td { padding: 6px 10px; border-bottom: 1px solid #e4e4e4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#recentTable td.n { color: #999; text-align: right; }
+#recentTable td.dir { direction: rtl; text-align: left; color: #888; }
+#recentTable td.file { color: #333; }
+#recentTable td.time { color: #888; }
+#recentTable tbody tr { cursor: pointer; }
+#recentTable tbody tr:hover td { background: #e2e8f3; }
+#recentTable tbody tr:hover td.file { color: #1a5fd0; }
+#recentEmpty { padding: 20px 16px; color: #888; }
 #dropOverlay { position: absolute; inset: 0; z-index: 60; background: rgba(179, 38, 30, .12); border: 3px dashed var(--brand); display: grid; place-items: center; font-size: 22px; color: var(--brand); font-weight: 600; pointer-events: none; }
 #dropOverlay[hidden] { display: none; }
 
@@ -287,3 +306,35 @@ body.nodoc #ribbon button[data-needs-doc], body.nodoc #ribbon input, body.nodoc 
 .ol-row.italic .ol-title { font-style: italic; }
 .ol-kids.closed { display: none; }
 .ol-empty { padding: 14px 12px; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
+
+body.nodoc #sidebar, body.nodoc #outlinePanel { display: none; }
+
+/* Narrow windows: the file name keeps its room; the other columns shrink, then disappear
+   (first the time, then the folder, then the counter). */
+@container (max-width: 820px) {
+  #recentTable col.c-dir { width: 24%; }
+  #recentTable col.c-time { width: 118px; }
+}
+@container (max-width: 640px) {
+  #recentTable col.c-time { width: 0; }
+  #recentTable :is(th, td):nth-child(4) { display: none; }
+}
+@container (max-width: 480px) {
+  #recentTable col.c-dir { width: 0; }
+  #recentTable :is(th, td):nth-child(2) { display: none; }
+}
+@container (max-width: 340px) {
+  #recentTable col.c-n { width: 0; }
+  #recentTable :is(th, td):nth-child(1) { display: none; }
+}
+/* The drop box also gets slimmer on narrow windows. */
+@media (max-width: 1100px) {
+  #dropBox { width: 250px; }
+}
+@media (max-width: 800px) {
+  #welcome { padding: 16px; }
+  .welcome-wrap { gap: 12px; }
+  #dropBox { width: 190px; padding: 14px; }
+  .drop-logo { width: 44px; height: 44px; }
+  .drop-title { font-size: 14px; }
+}
