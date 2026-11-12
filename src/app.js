@@ -4,6 +4,7 @@ import {
   importAnnotations, buildPdf, copyPagesToNew, mergePdfs, HIGHLIGHT_COLORS, newId, wrapLines, TEXT_PAD, LINE_FACTOR, TEXT_FONTS, fontOf,
 } from './pdfio.js';
 import { loadOutline, flatten, setInitialOpen } from './outline.js';
+import { rangeTextIn, textUnderQuads, colourName, notesMarkdown } from './notes.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = './vendor/pdf.worker.min.mjs';
 const PDFJS_OPTS = {
@@ -66,6 +67,8 @@ const ICONS = {
   chevDown: '<path d="m6 9 6 6 6-6"/>',
   extract: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5"/><path d="M14 3v6h6v3"/><rect x="14" y="14" width="7" height="7" rx="1"/><path d="M8 13h3M8 17h3"/>',
   merge: '<rect x="3" y="3" width="8" height="10" rx="1"/><rect x="13" y="3" width="8" height="10" rx="1"/><path d="M7 13v3a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-3"/><path d="M12 18v3"/>',
+  copyNotes: '<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M4 16V5a2 2 0 0 1 2-2h11"/><path d="M11.5 12.5h6M11.5 16.5h4"/>',
+  saveNotes: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M12 12v6m-3-3 3 3 3-3"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7.5v.01" stroke-width="2.4"/>',
 };
 const svg = (name) =>
@@ -1075,10 +1078,14 @@ function highlightSelection() {
   if (!byPage.size) return false;
   pushUndo();
   const color = HIGHLIGHT_COLORS[S.hlColor];
+  const range = sel.getRangeAt(0);
   for (const [i, list] of byPage) {
     const vp = viewportFor(i);
     const quads = mergeRects(list).map((r) => rectToQuad(vp, r));
-    addAnnot(i, { id: newId(), type: 'highlight', quads, color: [...color], contents: '' });
+    const a = { id: newId(), type: 'highlight', quads, color: [...color], contents: '' };
+    const text = rangeTextIn(range, S.pe[i].tlDiv);
+    if (text) a.text = text;
+    addAnnot(i, a);
     renderAnnots(i);
   }
   sel.removeAllRanges();
@@ -1944,6 +1951,78 @@ mergeDlg.addEventListener('mousedown', (e) => {
   if (e.target === mergeDlg) closeMerge();
 });
 
+// ---------------------------------------------------------------- notes
+// Where an annotation sits, for ordering a page's notes top to bottom (PDF y grows upwards).
+function annotTop(a) {
+  if (a.type === 'highlight') {
+    const q = a.quads[0] || [];
+    return { y: Math.max(q[1], q[3], q[5], q[7]), x: Math.min(q[0], q[2], q[4], q[6]) };
+  }
+  return { y: a.y, x: a.x };
+}
+
+async function collectNotes() {
+  commitEdits();
+  const labels = (await S.pdf.getPageLabels().catch(() => null)) || null;
+  const pages = [];
+  for (let i = 0; i < S.model.pages.length; i++) {
+    const mp = S.model.pages[i];
+    const annots = mp.annots
+      .filter((a) => ['highlight', 'note', 'text'].includes(a.type))
+      .map((a) => ({ a, pos: annotTop(a) }))
+      .sort((p, q) => q.pos.y - p.pos.y || p.pos.x - q.pos.x)
+      .map((p) => p.a);
+    const items = [];
+    for (const a of annots) {
+      if (a.type === 'highlight') {
+        const text = a.text || textUnderQuads(await getTextContent(mp.src), a.quads);
+        items.push({ kind: 'highlight', text, comment: a.contents || '', colour: colourName(a.color) });
+      } else if (a.type === 'note' && a.contents?.trim()) {
+        items.push({ kind: 'comment', comment: a.contents });
+      } else if (a.type === 'text' && a.text?.trim()) {
+        items.push({ kind: 'textbox', text: a.text });
+      }
+    }
+    pages.push({ number: i + 1, label: labels?.[mp.src] || null, items });
+  }
+  if (!pages.some((p) => p.items.length)) return null;
+  let title = '';
+  try {
+    title = ((await S.pdf.getMetadata())?.info?.Title || '').trim();
+  } catch {}
+  if (!title || /^(untitled|microsoft word|document\d*)/i.test(title) || /\.(docx?|pdf|tex)$/i.test(title)) title = baseName(S.name);
+  const date = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  return notesMarkdown({ title, fileName: S.name, date, pages });
+}
+
+async function copyNotes() {
+  if (!S.pdf) return;
+  try {
+    const md = await collectNotes();
+    if (!md) return status('This document has no highlights or comments yet.', 4000);
+    await navigator.clipboard.writeText(md);
+    status('Notes copied. Paste them into any notes app or document.', 5000);
+  } catch (e) {
+    console.error(e);
+    api.error(`Could not copy the notes.\n\n${e?.message || e}`);
+  }
+}
+
+async function saveNotes() {
+  if (!S.pdf) return;
+  try {
+    const md = await collectNotes();
+    if (!md) return status('This document has no highlights or comments yet.', 4000);
+    const p = await api.saveDialog(besideCurrent(`${baseName(S.name)} notes.md`), 'md');
+    if (!p) return;
+    await api.writeFile(p, new TextEncoder().encode(md));
+    status(`Saved notes as ${p.split(/[\\/]/).pop()}`, 5000);
+  } catch (e) {
+    console.error(e);
+    api.error(`Could not save the notes.\n\n${e?.message || e}`);
+  }
+}
+
 function rebuildAfterStructure(focusPage) {
   buildPagesDOM();
   buildThumbs();
@@ -2318,6 +2397,8 @@ const commands = {
   rotateRight: () => rotatePages(90),
   deletePages: () => deletePages(),
   extractPages: () => extractPages(),
+  copyNotes,
+  saveNotes,
   mergePdfs: openMerge,
   mergeAdd,
   mergeRun,
@@ -2591,4 +2672,4 @@ refreshRecent();
 api.startupPath().then((p) => p && openPath(p));
 
 // test hook (used by automated tests only)
-window.__pdfacil = { S, tabs, getActive: () => active, activate, closeTab, openPath, save, setTool, highlightSelection, deletePages, rotatePages, undo, redo, runSearch, setScale, buildPdf };
+window.__pdfacil = { S, collectNotes, tabs, getActive: () => active, activate, closeTab, openPath, save, setTool, highlightSelection, deletePages, rotatePages, undo, redo, runSearch, setScale, buildPdf };

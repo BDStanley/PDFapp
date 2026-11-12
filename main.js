@@ -187,11 +187,12 @@ ipcMain.handle('read-file', async (_e, p) => {
 // Merge inputs: read without adding them to the Recent list.
 ipcMain.handle('read-bytes', async (_e, p) => new Uint8Array(await fs.promises.readFile(p)));
 
-ipcMain.handle('save-dialog', async (_e, suggested) => {
+ipcMain.handle('save-dialog', async (_e, suggested, kind) => {
+  const md = kind === 'md';
   const r = await dialog.showSaveDialog(win, {
-    title: 'Save PDF as',
+    title: md ? 'Save notes as' : 'Save PDF as',
     defaultPath: suggested,
-    filters: [{ name: 'PDF files', extensions: ['pdf'] }],
+    filters: [md ? { name: 'Markdown', extensions: ['md'] } : { name: 'PDF files', extensions: ['pdf'] }],
   });
   return r.canceled ? null : r.filePath;
 });
@@ -201,7 +202,7 @@ ipcMain.handle('write-file', async (_e, p, bytes) => {
   const tmp = p + '.pdfacil-tmp';
   await fs.promises.writeFile(tmp, Buffer.from(bytes));
   await fs.promises.rename(tmp, p);
-  addRecent(p);
+  if (/\.pdf$/i.test(p)) addRecent(p);
   return true;
 });
 

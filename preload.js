@@ -16,7 +16,7 @@ contextBridge.exposeInMainWorld('api', {
   openDialog: () => ipcRenderer.invoke('open-dialog'),
   readFile: (p) => ipcRenderer.invoke('read-file', p),
   readBytes: (p) => ipcRenderer.invoke('read-bytes', p),
-  saveDialog: (suggested) => ipcRenderer.invoke('save-dialog', suggested),
+  saveDialog: (suggested, kind) => ipcRenderer.invoke('save-dialog', suggested, kind),
   writeFile: (p, bytes) => ipcRenderer.invoke('write-file', p, bytes),
   confirm: (msg, buttons) => ipcRenderer.invoke('confirm', msg, buttons),
   error: (msg) => ipcRenderer.invoke('error', msg),
