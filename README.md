@@ -10,10 +10,11 @@ The Home menu on top has all the tools one needs:
 
 ## Installation (Windows only)
 
-1. Download the zip file
+1. Download the zip file from https://urisohn.com/sohn_files/software/PDFacil.zip
 2. Unzip it
-3. Run `PDFacil.exe`
+3. No install, just use it running `PDFacil.exe`
 
+You can also build it from source, see next.
 
 
 ### If you want to build from source 
