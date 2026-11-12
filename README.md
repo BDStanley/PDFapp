@@ -13,7 +13,7 @@ This is a fork of Uri Simonsohn's [PDFacil](https://github.com/urisohn/PDFacil),
 - **Merge PDFs**, which joins several PDFs into one;
 - **Copy Notes** and **Save Notes**, which turn highlights and comments into Markdown notes;
 - **Zotero integration**: open PDFs from your Zotero library, with highlights, comments and text boxes saved as Zotero annotations that sync to Zotero on every device;
-- **a new icon**.
+- **a new icon and a new look**: the type (Jost) and colours of benstanley.eu.
 
 Everything else works as in the original, and the Windows version is unchanged apart from the new features.
 
@@ -110,7 +110,7 @@ The tests in `test/` drive the app with [Playwright](https://playwright.dev/), f
 
 ## How it was made
 
-PDFacil was designed by Uri Simonsohn and written with Claude Opus 5.5 (Anthropic's AI model). Version 1.0.0 was developed in November 2026. The macOS version, Extract Pages, Merge PDFs, the notes export, the Zotero integration and the new icon were added in this fork in November 2026, also with Claude.
+PDFacil was designed by Uri Simonsohn and written with Claude Opus 5.5 (Anthropic's AI model). Version 1.0.0 was developed in November 2026. The macOS version, Extract Pages, Merge PDFs, the notes export, the Zotero integration, the new icon and the new look were added in this fork in November 2026, also with Claude.
 
 It is built on open-source components:
 
@@ -121,6 +121,6 @@ It is built on open-source components:
 
 ## Licence
 
-PDFacil is licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/): you may share and adapt it for non-commercial purposes, with credit to the author, Uri Simonsohn. Commercial use is not permitted. This fork is an adaptation under that licence. The changes are the macOS version, Extract Pages, Merge PDFs, the notes export, the Zotero integration and the new icon.
+PDFacil is licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/): you may share and adapt it for non-commercial purposes, with credit to the author, Uri Simonsohn. Commercial use is not permitted. This fork is an adaptation under that licence. The changes are the macOS version, Extract Pages, Merge PDFs, the notes export, the Zotero integration, the new icon and the new look.
 
-The components it builds on have their own open-source licences: Electron (MIT), PDF.js (Apache 2.0) and pdf-lib (MIT).
+The components it builds on have their own open-source licences: Electron (MIT), PDF.js (Apache 2.0) and pdf-lib (MIT). The Jost typeface (by indestructible type*) is under the SIL Open Font License 1.1, included as `src/fonts/OFL.txt`.
