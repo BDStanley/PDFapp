@@ -862,7 +862,6 @@ async function renderPage(i) {
   div.className = 'textLayer';
   const tl = new pdfjsLib.TextLayer({ textContentSource: tc, container: div, viewport: vp });
   await tl.render();
-  trackTextLayer(div);
   if (!pe.el.isConnected || pageKey(i) !== key) return;
   if (pe.tlDiv) pe.tlDiv.replaceWith(div);
   else pe.hl.after(div);
@@ -870,68 +869,6 @@ async function renderPage(i) {
   pe.tl = tl;
   pe.key = key;
   applySearchHighlights(i);
-}
-
-// Text selection that does not jump. Between lines and columns there is no text, and a selection dragged
-// there would run on to the end of the page (or further). As in PDF.js's own viewer, each text layer has an
-// empty "end of content" element; while text is being selected it is moved next to the end of the selection
-// that is moving, so the gaps extend the selection only to the nearest text.
-const textLayerEnds = new Map(); // text layer div -> its end-of-content div
-function trackTextLayer(div) {
-  const end = document.createElement('div');
-  end.className = 'endOfContent';
-  div.append(end);
-  div.addEventListener('mousedown', () => div.classList.add('selecting'));
-  for (const d of textLayerEnds.keys()) if (!d.isConnected) textLayerEnds.delete(d);
-  textLayerEnds.set(div, end);
-}
-{
-  const reset = (end, div) => {
-    div.append(end);
-    end.style.width = '';
-    end.style.height = '';
-    div.classList.remove('selecting');
-  };
-  const resetAll = () => textLayerEnds.forEach(reset);
-  let pointerDown = false;
-  let prevRange = null;
-  document.addEventListener('pointerdown', () => (pointerDown = true));
-  document.addEventListener('pointerup', () => {
-    pointerDown = false;
-    // On a touch screen the selection is still being adjusted with its handles after the finger lifts.
-    if (!IS_TOUCH) resetAll();
-  });
-  window.addEventListener('blur', () => {
-    pointerDown = false;
-    resetAll();
-  });
-  document.addEventListener('keyup', () => !pointerDown && resetAll());
-  document.addEventListener('selectionchange', () => {
-    const sel = document.getSelection();
-    if (!sel || !sel.rangeCount || sel.isCollapsed) {
-      resetAll();
-      prevRange = null;
-      return;
-    }
-    const range = sel.getRangeAt(0);
-    for (const [div, end] of textLayerEnds) {
-      if (!div.isConnected) textLayerEnds.delete(div);
-      else if (range.intersectsNode(div)) div.classList.add('selecting');
-      else reset(end, div);
-    }
-    const modifyStart = prevRange &&
-      (range.compareBoundaryPoints(Range.END_TO_END, prevRange) === 0 || range.compareBoundaryPoints(Range.START_TO_END, prevRange) === 0);
-    let anchor = modifyStart ? range.startContainer : range.endContainer;
-    if (anchor.nodeType === Node.TEXT_NODE) anchor = anchor.parentNode;
-    const layer = anchor.parentElement?.closest('.textLayer');
-    const end = textLayerEnds.get(layer);
-    if (end && anchor !== end && anchor.parentElement) {
-      end.style.width = layer.style.width;
-      end.style.height = layer.style.height;
-      anchor.parentElement.insertBefore(end, modifyStart ? anchor : anchor.nextSibling);
-    }
-    prevRange = range.cloneRange();
-  });
 }
 
 async function getTextContent(src) {
