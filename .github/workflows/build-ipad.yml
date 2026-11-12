@@ -1,0 +1,24 @@
+name: Build iPad app
+
+on:
+  workflow_dispatch:
+  push:
+    paths: ['src/**', 'ios/**', 'ios-web/**', 'scripts/build-web.js', 'scripts/build-ipa.sh', 'capacitor.config.json', 'package.json']
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build an unsigned PDFapp.ipa (AltStore signs it when it installs it)
+        run: npm run ios:ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PDFapp-ipad
+          path: dist/PDFapp.ipa
+          if-no-files-found: error

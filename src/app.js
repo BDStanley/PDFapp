@@ -16,8 +16,16 @@ const PDFJS_OPTS = {
 };
 
 const api = window.api;
+// Write a file and return where it went: the same path on the desktop; on the iPad a new destination
+// may be chosen in the export sheet (or null if it was cancelled).
+async function writeTo(p, bytes) {
+  const r = await api.writeFile(p, bytes);
+  return typeof r === 'string' || r === null ? r : p;
+}
+const copyText = (t) => (api.copyText ? api.copyText(t) : navigator.clipboard.writeText(t));
 // On macOS shortcuts use Cmd, so labels say ⌘ instead of Ctrl.
-const IS_MAC = api.platform === 'darwin';
+const IS_MAC = api.platform === 'darwin' || api.platform === 'ios';
+const IS_TOUCH = api.platform === 'ios';
 const kb = (t) =>
   IS_MAC ? t.replace(/Ctrl\+click/g, '⌘-click').replace(/Ctrl \+\)/g, '⌘+)').replace(/Ctrl \+ /g, '⌘ ').replace(/Ctrl\+F1/g, '⌘⇧R').replace(/Ctrl\+Y/g, '⌘⇧Z').replace(/Ctrl\+Shift\+/g, '⌘⇧').replace(/Ctrl\s?/g, '⌘').replace(/⌘\+/g, '⌘') : t;
 if (IS_MAC) {
@@ -608,6 +616,25 @@ async function closeTab(i = active) {
 
 const closeCmd = () => closeTab(active);
 
+// The iPad may close an app in the background at any time, so documents that can be saved where they
+// came from are saved when it goes there; others (new, dropped or Zotero downloads) keep their changes open.
+async function saveForBackground() {
+  commitEdits();
+  const start = active;
+  for (let i = 0; i < tabs.length; i++) {
+    const doc = i === active ? S : tabs[i].doc;
+    const dirty = i === active ? isDirty() : tabs[i].dirty;
+    if (!dirty) continue;
+    if (doc.zotero) await doc.zotero.push();
+    if (!/^ios:\/\//.test(doc.path || '') && !doc.zotero) continue;
+    if (i !== active) activate(i);
+    await save(false).catch(() => {});
+  }
+  if (active !== start && tabs[start]) activate(start);
+  renderTabs();
+}
+api.onBackground?.(saveForBackground);
+
 async function saveAllAndClose() {
   commitEdits();
   for (let i = 0; i < tabs.length; i++) {
@@ -641,7 +668,8 @@ async function save(asNew) {
   try {
     busy('Saving…');
     const bytes = await buildPdf(S.baseBytes, S.model, S.author);
-    await api.writeFile(p, bytes);
+    p = await writeTo(p, bytes);
+    if (!p) return false;
     if (S.zotero) unlinkZotero();
     S.path = p;
     S.name = p.split(/[\\/]/).pop();
@@ -662,6 +690,19 @@ async function save(asNew) {
 async function print() {
   if (!S.pdf) return;
   commitEdits();
+  if (api.printPdf) {
+    try {
+      busy('Preparing to print…');
+      const bytes = S.readOnly ? S.baseBytes.slice() : await buildPdf(S.baseBytes, S.model, S.author);
+      busy(null);
+      await api.printPdf(bytes, S.name);
+    } catch (e) {
+      api.error(`Could not print.\n\n${e?.message || e}`);
+    } finally {
+      busy(null);
+    }
+    return;
+  }
   try {
     busy('Preparing pages for printing…');
     const bytes = S.readOnly ? S.baseBytes.slice() : await buildPdf(S.baseBytes, S.model, S.author);
@@ -1396,7 +1437,7 @@ pagesDiv.addEventListener('contextmenu', (e) => {
   if (sel && !sel.isCollapsed && sel.toString().trim()) {
     const text = sel.toString();
     items.push({ label: 'Highlight selection', run: () => highlightSelection() });
-    items.push({ label: 'Copy', key: kb('Ctrl+C'), run: () => navigator.clipboard.writeText(text) });
+    items.push({ label: 'Copy', key: kb('Ctrl+C'), run: () => copyText(text) });
     items.push('-');
   }
   const annEl = e.target.closest('.ann-text, .ann-note');
@@ -2134,10 +2175,11 @@ async function extractPages(list = targetPages()) {
     busy(`Extracting ${label}…`);
     // buildPdf keeps pages in document order, so model index k is output page k.
     const bytes = await copyPagesToNew(await currentBytes(), list);
-    await api.writeFile(p, bytes);
+    const at = await writeTo(p, bytes);
     busy(null);
-    await openPath(p);
-    status(`Saved ${label} as ${p.split(/[\\/]/).pop()}`, 5000);
+    if (!at) return;
+    await openPath(at);
+    status(`Saved ${label} as ${at.split(/[\\/]/).pop()}`, 5000);
   } catch (e) {
     console.error(e);
     api.error(`Could not extract the pages.\n\n${e?.message || e}`);
@@ -2214,11 +2256,12 @@ async function mergeRun() {
     }
     busy('Merging…');
     const bytes = await mergePdfs(items);
-    await api.writeFile(p, bytes);
+    const at = await writeTo(p, bytes);
     busy(null);
+    if (!at) return;
     closeMerge();
-    await openPath(p);
-    status(`Merged ${items.length} files into ${p.split(/[\\/]/).pop()}`, 5000);
+    await openPath(at);
+    status(`Merged ${items.length} files into ${at.split(/[\\/]/).pop()}`, 5000);
   } catch (e) {
     console.error(e);
     api.error(`Could not merge the files.\n\n${e?.message || e}`);
@@ -2280,7 +2323,7 @@ async function copyNotes() {
   try {
     const md = await collectNotes();
     if (!md) return status('This document has no highlights or comments yet.', 4000);
-    await navigator.clipboard.writeText(md);
+    await copyText(md);
     status('Notes copied. Paste them into any notes app or document.', 5000);
   } catch (e) {
     console.error(e);
@@ -2295,8 +2338,8 @@ async function saveNotes() {
     if (!md) return status('This document has no highlights or comments yet.', 4000);
     const p = await api.saveDialog(besideCurrent(`${baseName(S.name)} notes.md`), 'md');
     if (!p) return;
-    await api.writeFile(p, new TextEncoder().encode(md));
-    status(`Saved notes as ${p.split(/[\\/]/).pop()}`, 5000);
+    const at = await writeTo(p, new TextEncoder().encode(md));
+    if (at) status(`Saved notes as ${at.split(/[\\/]/).pop()}`, 5000);
   } catch (e) {
     console.error(e);
     api.error(`Could not save the notes.\n\n${e?.message || e}`);
@@ -2380,7 +2423,7 @@ async function saveZotero() {
     }
     try {
       busy('Saving…');
-      await api.writeFile(S.path, await buildPdf(S.baseBytes, fileModel(), S.author));
+      await writeTo(S.path, await buildPdf(S.baseBytes, fileModel(), S.author));
       S.savedSnap = fileSnap();
     } catch (e) {
       api.error(`Could not save the file.\n\n${e?.message || e}`);
@@ -3019,9 +3062,10 @@ function formatWhen(t) {
 
 async function refreshRecent() {
   const list = await api.getRecent();
-  const split = (p) => {
+  const split = (r) => {
+    const p = r.path;
     const name = p.split(/[\\/]/).pop();
-    return { name, dir: p.slice(0, Math.max(0, p.length - name.length - 1)) };
+    return { name, dir: api.displayDir ? api.displayDir(r) : p.slice(0, Math.max(0, p.length - name.length - 1)) };
   };
 
   // File > Recent dropdown: the 15 most recent.
@@ -3029,7 +3073,7 @@ async function refreshRecent() {
   menu.innerHTML = '';
   if (!list.length) menu.innerHTML = '<div class="empty">No recent files</div>';
   for (const r of list.slice(0, 15)) {
-    const { name, dir } = split(r.path);
+    const { name, dir } = split(r);
     const b = document.createElement('button');
     b.className = 'mi';
     b.title = r.path;
@@ -3050,7 +3094,7 @@ async function refreshRecent() {
   $('#recentTable').style.display = list.length ? '' : 'none';
   $('#recentCount').textContent = list.length ? `${list.length} file${list.length > 1 ? 's' : ''}` : '';
   list.forEach((r, k) => {
-    const { name, dir } = split(r.path);
+    const { name, dir } = split(r);
     const tr = document.createElement('tr');
     tr.title = r.path;
     tr.innerHTML = '<td class="n"></td><td class="dir"></td><td class="file"></td><td class="time"></td>';
@@ -3303,7 +3347,7 @@ window.addEventListener('keydown', (e) => {
     }
     if (k === 'c' && !inEdit) {
       const t = window.getSelection()?.toString();
-      if (t) navigator.clipboard.writeText(t);
+      if (t) copyText(t);
     }
     return;
   }
@@ -3420,4 +3464,4 @@ refreshRecent();
 api.startupPath().then((p) => p && openPath(p));
 
 // test hook (used by automated tests only)
-window.__pdfapp = { S, toggleGrid, isGridOpen: () => gridOpen, collectNotes, openZoteroAttachment, openZoteroBrowser, tabs, getActive: () => active, activate, closeTab, openPath, save, setTool, highlightSelection, deletePages, rotatePages, undo, redo, runSearch, setScale, buildPdf };
+window.__pdfapp = { S, IS_TOUCH, copyText, toggleGrid, isGridOpen: () => gridOpen, collectNotes, openZoteroAttachment, openZoteroBrowser, tabs, getActive: () => active, activate, closeTab, openPath, save, setTool, highlightSelection, deletePages, rotatePages, undo, redo, runSearch, setScale, buildPdf };

@@ -1,0 +1,12 @@
+{
+  "appId": "com.bdstanley.pdfapp",
+  "appName": "PDFapp",
+  "webDir": "www",
+  "backgroundColor": "#8b0000",
+  "ios": {
+    "contentInset": "never",
+    "scrollEnabled": false,
+    "backgroundColor": "#8b0000",
+    "allowsLinkPreview": false
+  }
+}

@@ -1,10 +1,11 @@
 # PDFapp
 
-A PDF viewer and editor for researchers who read papers in PDF format, for macOS and Windows. The Home menu along the top has all the tools you need.
+A PDF viewer and editor for researchers who read papers in PDF format, for macOS, the iPad and Windows. The Home menu along the top has all the tools you need.
 
 PDFapp is based on Uri Simonsohn's [PDFacil](https://github.com/urisohn/PDFacil), a Windows app, and was further developed by Ben Stanley. Its additions:
 
 - **a macOS version**, built as one app for Apple silicon and Intel Macs;
+- **an iPad version**, with the same features, saving to files anywhere in Files;
 - **Extract Pages**, which saves selected pages as a new PDF;
 - **Merge PDFs**, which joins several PDFs into one;
 - **the Page Grid**, which shows every page as a thumbnail in the main window for picking pages;
@@ -95,6 +96,54 @@ To make PDFapp your default PDF viewer, select any PDF in Finder and choose *Get
 **Keyboard.** On a Mac, shortcuts use ⌘ where Windows uses Ctrl. Redo is ⌘⇧Z, ⌘-click picks several thumbnails, ⌘⇧G opens the Page Grid, and ⌘⇧R hides or shows the ribbon (Ctrl+F1 on Windows).
 
 
+## On the iPad
+
+PDFapp runs on the iPad too, with the same features. The app is the same code as on the Mac, wrapped with [Capacitor](https://capacitorjs.com/) (`ios/`, `ios-web/`), with a small native plugin for files, printing and Zotero (`ios/App/App/PDFappPlugin.swift`).
+
+**How it differs from the Mac.**
+
+- **Opening:** *Open* shows the Files sheet: pick PDFs anywhere, in iCloud Drive or on the iPad. In Files, you can also choose *Share › PDFapp*, or open a PDF in PDFapp, and it opens there.
+- **Saving:** *Save* writes back to the same file; PDFapp remembers its permission to each file you have opened. *Save As*, *Extract Pages*, *Merge PDFs* and *Save Notes* ask where to put the new file in the Files sheet.
+- **When you leave the app:** the iPad may close an app in the background at any time, so PDFapp saves open documents when you switch away from it. A new document that has never been saved stays open with its changes.
+- **Touch:**
+  - select text by pressing on it, then tap *Highlight* or *Copy* on the bar above the selection;
+  - pinch to zoom;
+  - press and hold for the menus that a right-click opens on the Mac (pages, thumbnails, the Page Grid);
+  - drag comments and text boxes with a finger;
+  - in the Page Grid, tap the circles to pick pages.
+
+  With a keyboard attached, the ⌘ shortcuts work as on the Mac.
+- **Printing** uses the iPad's own print sheet. *Copy Notes* uses the iPad's clipboard.
+- **Zotero** works as on the Mac. The key is kept in the iPad's keychain, and PDFs come from Zotero's own file storage (not WebDAV or linked files, which are on your computer).
+
+**Installing it with a free Apple ID.** An app installed with a free Apple ID works for 7 days and then has to be installed again. There are two ways.
+
+*From Xcode*, with the iPad on a cable. You need Xcode from the Mac App Store.
+
+1. In the PDFapp folder:
+   ```
+   git pull
+   npm install
+   npm run ios:open
+   ```
+   This builds the web part and opens the project in Xcode.
+2. In Xcode, go to *Settings › Accounts*, click *+*, and add your Apple ID.
+3. Click the *App* project, then the *App* target, then *Signing & Capabilities*, and set *Team* to your name (Personal Team).
+4. Connect the iPad and choose it at the top of the window. The first time:
+   - on the iPad, turn on *Settings › Privacy & Security › Developer Mode* and restart it;
+   - after the first install, trust your Apple ID on the iPad, under *Settings › General › VPN & Device Management*.
+5. Click ▶ (Run). To renew the app after 7 days, click ▶ again.
+
+*With AltStore*, which renews the app over Wi-Fi by itself:
+
+1. Get the app file:
+   - **download it:** under *Actions › Build iPad app* on this repository's GitHub page, download `PDFapp-ipad` from the latest successful run;
+   - **or build it:** run `npm run ios:ipa` in the PDFapp folder, which makes `dist/PDFapp.ipa`.
+2. Send `PDFapp.ipa` to the iPad with AirDrop or iCloud Drive.
+3. In AltStore, open *My Apps*, tap *+*, and pick the file.
+
+A free Apple ID allows three apps at a time through AltStore, AltStore itself included.
+
 ## Installing on Windows
 
 To build PDFapp for Windows, you need [Node.js](https://nodejs.org/) 20 or newer:
@@ -117,24 +166,26 @@ The tests in `test/` drive the app with [Playwright](https://playwright.dev/), f
 - `test/grid.cjs`: the Page Grid;
 - `test/notes.cjs`: the notes;
 - `test/zotero.cjs`: the Zotero integration, against a stand-in for Zotero's web API (`test/zotero-mock.cjs`);
-- `test/rename-compat.cjs`: that annotations saved under the old name still open.
+- `test/rename-compat.cjs`: that annotations saved under the old name still open;
+- `test/ios-web.cjs`: the iPad app's web part at iPad size, with touch, against a stand-in for the native plugin. The native plugin itself is only built and run in Xcode.
 
 
 ## Credits
 
 PDFapp is based on PDFacil, designed by Uri Simonsohn and written with Claude Opus 5.5 (Anthropic's AI model) in November 2026.
 
-PDFapp was further developed by Ben Stanley in November 2026, also with Claude: the macOS version, Extract Pages, Merge PDFs, the Page Grid, the notes export, the Zotero integration, and the new name, icon and look.
+PDFapp was further developed by Ben Stanley in November 2026, also with Claude: the macOS and iPad versions, Extract Pages, Merge PDFs, the Page Grid, the notes export, the Zotero integration, and the new name, icon and look.
 
 It is built on open-source components:
 
 - [Electron](https://www.electronjs.org/) for the desktop app
 - [PDF.js](https://mozilla.github.io/pdf.js/) (Mozilla) for displaying, searching and printing PDFs
 - [pdf-lib](https://pdf-lib.js.org/) for saving edits into the PDF, and for extracting and merging pages
+- [Capacitor](https://capacitorjs.com/) for the iPad app
 
 
 ## Licence
 
 PDFacil, and so PDFapp, is licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/): you may share and adapt it for non-commercial purposes, with credit to the author, Uri Simonsohn. Commercial use is not permitted. PDFapp is an adaptation of PDFacil under that licence. The changes are the ones listed under Credits.
 
-The components it builds on have their own open-source licences: Electron (MIT), PDF.js (Apache 2.0) and pdf-lib (MIT). The Jost typeface (by indestructible type*) is under the SIL Open Font License 1.1, included as `src/fonts/OFL.txt`.
+The components it builds on have their own open-source licences: Electron (MIT), PDF.js (Apache 2.0), pdf-lib (MIT) and Capacitor (MIT). The Jost typeface (by indestructible type*) is under the SIL Open Font License 1.1, included as `src/fonts/OFL.txt`.

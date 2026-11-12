@@ -302,7 +302,7 @@
         <dt>Created with</dt><dd>Claude Opus 5.5</dd>
         <dt>Date</dt><dd>November 2026</dd>
       </dl>
-      <p class="about-credits">Based on PDFacil by Uri Simonsohn. Further developed by Ben Stanley: the macOS version, Zotero, notes, extracting and merging, the page grid and the design. Built with Electron, PDF.js and pdf-lib.</p>
+      <p class="about-credits">Based on PDFacil by Uri Simonsohn. Further developed by Ben Stanley: the macOS and iPad versions, Zotero, notes, extracting and merging, the page grid and the design. Built with Electron, PDF.js and pdf-lib.</p>
       <button class="primary" data-cmd="closeAbout">OK</button>
     </div>
   </div>
@@ -349,10 +349,10 @@
         <label for="zsKey">API key</label>
         <div><input id="zsKey" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your Zotero API key" />
           <div class="zhelp">Create one at <a href="https://www.zotero.org/settings/keys/new" target="_blank">zotero.org/settings/keys/new</a> with <em>Allow library access</em> and <em>Allow write access</em> ticked (and access to groups, if you want them). PDFapp keeps it in your computer's keychain.</div></div>
-        <label for="zsData">Zotero data folder</label>
-        <div class="zrow"><input id="zsData" type="text" spellcheck="false" /><button data-cmd="zoteroPickData">Choose…</button></div>
-        <label for="zsBase">Linked files folder</label>
-        <div><div class="zrow"><input id="zsBase" type="text" spellcheck="false" placeholder="Only if you use linked files" /><button data-cmd="zoteroPickBase">Choose…</button></div>
+        <label class="ios-hide" for="zsData">Zotero data folder</label>
+        <div class="zrow ios-hide"><input id="zsData" type="text" spellcheck="false" /><button data-cmd="zoteroPickData">Choose…</button></div>
+        <label class="ios-hide" for="zsBase">Linked files folder</label>
+        <div class="ios-hide"><div class="zrow"><input id="zsBase" type="text" spellcheck="false" placeholder="Only if you use linked files" /><button data-cmd="zoteroPickBase">Choose…</button></div>
           <div class="zhelp">Zotero's <em>Settings › Advanced › Files and Folders › Linked Attachment Base Directory</em>.</div></div>
       </div>
       <div class="dlg-buttons">

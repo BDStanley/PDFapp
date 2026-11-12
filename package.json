@@ -8,7 +8,10 @@
     "start": "electron .",
     "dist": "electron-builder --win dir --x64 && node scripts/copy-exe.js",
     "test": "node test/smoke.cjs",
-    "dist:mac": "electron-builder --mac --universal --publish never"
+    "dist:mac": "electron-builder --mac --universal --publish never",
+    "ios:sync": "node scripts/build-web.js && npx cap sync ios",
+    "ios:open": "node scripts/build-web.js && npx cap sync ios && npx cap open ios",
+    "ios:ipa": "bash scripts/build-ipa.sh"
   },
   "author": "Uri Simonsohn",
   "license": "CC-BY-NC-4.0",
@@ -17,6 +20,9 @@
     "pdfjs-dist": "^4.10.38"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.6.2",
+    "@capacitor/core": "^8.6.2",
+    "@capacitor/ios": "^8.6.2",
     "electron": "^45.3.0",
     "electron-builder": "^26.18.0"
   },
