@@ -862,6 +862,7 @@ async function renderPage(i) {
   div.className = 'textLayer';
   const tl = new pdfjsLib.TextLayer({ textContentSource: tc, container: div, viewport: vp });
   await tl.render();
+  trackTextLayer(div);
   if (!pe.el.isConnected || pageKey(i) !== key) return;
   if (pe.tlDiv) pe.tlDiv.replaceWith(div);
   else pe.hl.after(div);
@@ -869,6 +870,68 @@ async function renderPage(i) {
   pe.tl = tl;
   pe.key = key;
   applySearchHighlights(i);
+}
+
+// Text selection that does not jump. Between lines and columns there is no text, and a selection dragged
+// there would run on to the end of the page (or further). As in PDF.js's own viewer, each text layer has an
+// empty "end of content" element; while text is being selected it is moved next to the end of the selection
+// that is moving, so the gaps extend the selection only to the nearest text.
+const textLayerEnds = new Map(); // text layer div -> its end-of-content div
+function trackTextLayer(div) {
+  const end = document.createElement('div');
+  end.className = 'endOfContent';
+  div.append(end);
+  div.addEventListener('mousedown', () => div.classList.add('selecting'));
+  for (const d of textLayerEnds.keys()) if (!d.isConnected) textLayerEnds.delete(d);
+  textLayerEnds.set(div, end);
+}
+{
+  const reset = (end, div) => {
+    div.append(end);
+    end.style.width = '';
+    end.style.height = '';
+    div.classList.remove('selecting');
+  };
+  const resetAll = () => textLayerEnds.forEach(reset);
+  let pointerDown = false;
+  let prevRange = null;
+  document.addEventListener('pointerdown', () => (pointerDown = true));
+  document.addEventListener('pointerup', () => {
+    pointerDown = false;
+    // On a touch screen the selection is still being adjusted with its handles after the finger lifts.
+    if (!IS_TOUCH) resetAll();
+  });
+  window.addEventListener('blur', () => {
+    pointerDown = false;
+    resetAll();
+  });
+  document.addEventListener('keyup', () => !pointerDown && resetAll());
+  document.addEventListener('selectionchange', () => {
+    const sel = document.getSelection();
+    if (!sel || !sel.rangeCount || sel.isCollapsed) {
+      resetAll();
+      prevRange = null;
+      return;
+    }
+    const range = sel.getRangeAt(0);
+    for (const [div, end] of textLayerEnds) {
+      if (!div.isConnected) textLayerEnds.delete(div);
+      else if (range.intersectsNode(div)) div.classList.add('selecting');
+      else reset(end, div);
+    }
+    const modifyStart = prevRange &&
+      (range.compareBoundaryPoints(Range.END_TO_END, prevRange) === 0 || range.compareBoundaryPoints(Range.START_TO_END, prevRange) === 0);
+    let anchor = modifyStart ? range.startContainer : range.endContainer;
+    if (anchor.nodeType === Node.TEXT_NODE) anchor = anchor.parentNode;
+    const layer = anchor.parentElement?.closest('.textLayer');
+    const end = textLayerEnds.get(layer);
+    if (end && anchor !== end && anchor.parentElement) {
+      end.style.width = layer.style.width;
+      end.style.height = layer.style.height;
+      anchor.parentElement.insertBefore(end, modifyStart ? anchor : anchor.nextSibling);
+    }
+    prevRange = range.cloneRange();
+  });
 }
 
 async function getTextContent(src) {
@@ -1094,29 +1157,41 @@ function addAnnot(page, a) {
 }
 
 // Merge selection rectangles into one rectangle per line (works for rotated text too).
+// Each pass sorts the rectangles and compares each only with the lines merged just before it, so a selection
+// of thousands of rectangles (a whole page, or several) takes milliseconds; comparing every pair, as this did
+// before, could take minutes, and iOS stops an app that hangs that long.
 function mergeRects(rects) {
+  const ov = (a1, a2, b1, b2) => Math.min(a2, b2) - Math.max(a1, b1);
+  const joins = (A, B) => {
+    const hA = A.b - A.t, hB = B.b - B.t, wA = A.r - A.l, wB = B.r - B.l;
+    const vOv = ov(A.t, A.b, B.t, B.b);
+    const hOv = ov(A.l, A.r, B.l, B.r);
+    const sameRow = vOv > 0.5 * Math.min(hA, hB) && hOv > -0.6 * Math.min(hA, hB);
+    const sameCol = hOv > 0.5 * Math.min(wA, wB) && vOv > -0.6 * Math.min(wA, wB) && Math.max(hA, hB) > 2 * Math.max(wA, wB);
+    return sameRow || sameCol;
+  };
+  const WINDOW = 12;
   let list = rects.map((r) => ({ ...r }));
-  let merged = true;
-  while (merged) {
-    merged = false;
-    outer: for (let a = 0; a < list.length; a++) {
-      for (let b = a + 1; b < list.length; b++) {
-        const A = list[a];
-        const B = list[b];
-        const ov = (a1, a2, b1, b2) => Math.min(a2, b2) - Math.max(a1, b1);
-        const hA = A.b - A.t, hB = B.b - B.t, wA = A.r - A.l, wB = B.r - B.l;
-        const vOv = ov(A.t, A.b, B.t, B.b);
-        const hOv = ov(A.l, A.r, B.l, B.r);
-        const sameRow = vOv > 0.5 * Math.min(hA, hB) && hOv > -0.6 * Math.min(hA, hB);
-        const sameCol = hOv > 0.5 * Math.min(wA, wB) && vOv > -0.6 * Math.min(wA, wB) && Math.max(hA, hB) > 2 * Math.max(wA, wB);
-        if (sameRow || sameCol) {
-          list[a] = { l: Math.min(A.l, B.l), t: Math.min(A.t, B.t), r: Math.max(A.r, B.r), b: Math.max(A.b, B.b) };
-          list.splice(b, 1);
-          merged = true;
-          break outer;
+  for (let pass = 0; pass < 6; pass++) {
+    list.sort((A, B) => A.t + A.b - (B.t + B.b) || A.l - B.l);
+    const out = [];
+    for (const R of list) {
+      let into = -1;
+      for (let k = out.length - 1; k >= Math.max(0, out.length - WINDOW); k--) {
+        if (joins(out[k], R)) {
+          into = k;
+          break;
         }
       }
+      if (into < 0) out.push(R);
+      else {
+        const A = out[into];
+        out[into] = { l: Math.min(A.l, R.l), t: Math.min(A.t, R.t), r: Math.max(A.r, R.r), b: Math.max(A.b, R.b) };
+      }
     }
+    const done = out.length === list.length;
+    list = out;
+    if (done) break;
   }
   return list;
 }
@@ -1140,17 +1215,15 @@ function highlightSelection() {
   const ws = rects.map((r) => r.width).sort((a, b) => a - b);
   const medW = ws[Math.floor(ws.length / 2)];
   const byPage = new Map();
+  const boxes = S.pe.map((pe) => pe.el.getBoundingClientRect());
   for (const r of rects) {
     // Skip giant container boxes that sometimes appear when a selection spans elements.
     if (r.height > 3.5 * med && r.width > 3.5 * medW) continue;
     const cx = r.left + r.width / 2;
     const cy = r.top + r.height / 2;
-    const i = S.pe.findIndex((pe) => {
-      const b = pe.el.getBoundingClientRect();
-      return cx >= b.left && cx <= b.right && cy >= b.top && cy <= b.bottom;
-    });
+    const i = boxes.findIndex((b) => cx >= b.left && cx <= b.right && cy >= b.top && cy <= b.bottom);
     if (i < 0) continue;
-    const b = S.pe[i].el.getBoundingClientRect();
+    const b = boxes[i];
     if (!byPage.has(i)) byPage.set(i, []);
     byPage.get(i).push({ l: r.left - b.left, t: r.top - b.top, r: r.right - b.left, b: r.bottom - b.top });
   }
