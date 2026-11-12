@@ -1094,41 +1094,29 @@ function addAnnot(page, a) {
 }
 
 // Merge selection rectangles into one rectangle per line (works for rotated text too).
-// Each pass sorts the rectangles and compares each only with the lines merged just before it, so a selection
-// of thousands of rectangles (a whole page, or several) takes milliseconds; comparing every pair, as this did
-// before, could take minutes, and iOS stops an app that hangs that long.
 function mergeRects(rects) {
-  const ov = (a1, a2, b1, b2) => Math.min(a2, b2) - Math.max(a1, b1);
-  const joins = (A, B) => {
-    const hA = A.b - A.t, hB = B.b - B.t, wA = A.r - A.l, wB = B.r - B.l;
-    const vOv = ov(A.t, A.b, B.t, B.b);
-    const hOv = ov(A.l, A.r, B.l, B.r);
-    const sameRow = vOv > 0.5 * Math.min(hA, hB) && hOv > -0.6 * Math.min(hA, hB);
-    const sameCol = hOv > 0.5 * Math.min(wA, wB) && vOv > -0.6 * Math.min(wA, wB) && Math.max(hA, hB) > 2 * Math.max(wA, wB);
-    return sameRow || sameCol;
-  };
-  const WINDOW = 12;
   let list = rects.map((r) => ({ ...r }));
-  for (let pass = 0; pass < 6; pass++) {
-    list.sort((A, B) => A.t + A.b - (B.t + B.b) || A.l - B.l);
-    const out = [];
-    for (const R of list) {
-      let into = -1;
-      for (let k = out.length - 1; k >= Math.max(0, out.length - WINDOW); k--) {
-        if (joins(out[k], R)) {
-          into = k;
-          break;
+  let merged = true;
+  while (merged) {
+    merged = false;
+    outer: for (let a = 0; a < list.length; a++) {
+      for (let b = a + 1; b < list.length; b++) {
+        const A = list[a];
+        const B = list[b];
+        const ov = (a1, a2, b1, b2) => Math.min(a2, b2) - Math.max(a1, b1);
+        const hA = A.b - A.t, hB = B.b - B.t, wA = A.r - A.l, wB = B.r - B.l;
+        const vOv = ov(A.t, A.b, B.t, B.b);
+        const hOv = ov(A.l, A.r, B.l, B.r);
+        const sameRow = vOv > 0.5 * Math.min(hA, hB) && hOv > -0.6 * Math.min(hA, hB);
+        const sameCol = hOv > 0.5 * Math.min(wA, wB) && vOv > -0.6 * Math.min(wA, wB) && Math.max(hA, hB) > 2 * Math.max(wA, wB);
+        if (sameRow || sameCol) {
+          list[a] = { l: Math.min(A.l, B.l), t: Math.min(A.t, B.t), r: Math.max(A.r, B.r), b: Math.max(A.b, B.b) };
+          list.splice(b, 1);
+          merged = true;
+          break outer;
         }
       }
-      if (into < 0) out.push(R);
-      else {
-        const A = out[into];
-        out[into] = { l: Math.min(A.l, R.l), t: Math.min(A.t, R.t), r: Math.max(A.r, R.r), b: Math.max(A.b, R.b) };
-      }
     }
-    const done = out.length === list.length;
-    list = out;
-    if (done) break;
   }
   return list;
 }
@@ -1152,15 +1140,17 @@ function highlightSelection() {
   const ws = rects.map((r) => r.width).sort((a, b) => a - b);
   const medW = ws[Math.floor(ws.length / 2)];
   const byPage = new Map();
-  const boxes = S.pe.map((pe) => pe.el.getBoundingClientRect());
   for (const r of rects) {
     // Skip giant container boxes that sometimes appear when a selection spans elements.
     if (r.height > 3.5 * med && r.width > 3.5 * medW) continue;
     const cx = r.left + r.width / 2;
     const cy = r.top + r.height / 2;
-    const i = boxes.findIndex((b) => cx >= b.left && cx <= b.right && cy >= b.top && cy <= b.bottom);
+    const i = S.pe.findIndex((pe) => {
+      const b = pe.el.getBoundingClientRect();
+      return cx >= b.left && cx <= b.right && cy >= b.top && cy <= b.bottom;
+    });
     if (i < 0) continue;
-    const b = boxes[i];
+    const b = S.pe[i].el.getBoundingClientRect();
     if (!byPage.has(i)) byPage.set(i, []);
     byPage.get(i).push({ l: r.left - b.left, t: r.top - b.top, r: r.right - b.left, b: r.bottom - b.top });
   }
