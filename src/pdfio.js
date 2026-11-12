@@ -307,6 +307,7 @@ export async function buildPdf(baseBytes, model, author) {
       dict.set(PDFName.of('P'), page.ref);
       const copy = { ...a };
       delete copy.id;
+      delete copy.z; // a Zotero annotation written into a file is a plain annotation there
       dict.set(PDFName.of(MARK), PDFHexString.fromText(JSON.stringify(copy)));
       page.node.addAnnot(ctx.register(dict));
     }

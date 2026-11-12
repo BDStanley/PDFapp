@@ -26,6 +26,7 @@
     "productName": "PDFacil",
     "files": [
       "main.js",
+      "zotero-main.js",
       "preload.js",
       "src/**/*",
       "build/icon.png",

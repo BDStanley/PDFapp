@@ -5,6 +5,7 @@ import {
 } from './pdfio.js';
 import { loadOutline, flatten, setInitialOpen } from './outline.js';
 import { rangeTextIn, textUnderQuads, colourName, notesMarkdown } from './notes.js';
+import { ZoteroLink } from './zotero.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = './vendor/pdf.worker.min.mjs';
 const PDFJS_OPTS = {
@@ -69,13 +70,15 @@ const ICONS = {
   merge: '<rect x="3" y="3" width="8" height="10" rx="1"/><rect x="13" y="3" width="8" height="10" rx="1"/><path d="M7 13v3a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-3"/><path d="M12 18v3"/>',
   copyNotes: '<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M4 16V5a2 2 0 0 1 2-2h11"/><path d="M11.5 12.5h6M11.5 16.5h4"/>',
   saveNotes: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M12 12v6m-3-3 3 3 3-3"/>',
+  zotero: '<path d="M5 4h14v3L9 17h10v3H5v-3L15 7H5z"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7.5v.01" stroke-width="2.4"/>',
 };
 const svg = (name) =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ''}</svg>`;
 $$('[data-icon]').forEach((b) => b.insertAdjacentHTML('afterbegin', svg(b.dataset.icon)));
 $$('#ribbon button[data-cmd]').forEach((b) => {
-  if (!['open', 'recentMenu', 'about', 'mergePdfs'].includes(b.dataset.cmd)) b.dataset.needsDoc = '1';
+  if (!['open', 'recentMenu', 'about', 'mergePdfs', 'zotero', 'zoteroSettings'].includes(b.dataset.cmd)) b.dataset.needsDoc = '1';
 });
 $$('#ribbon button[data-tool]').forEach((b) => (b.dataset.needsDoc = '1'));
 
@@ -145,7 +148,10 @@ function busy(msg) {
   $('#busyMsg').textContent = msg || '';
 }
 const snapshot = () => JSON.stringify(S.model.pages);
-const isDirty = () => !!S.pdf && snapshot() !== S.savedSnap;
+// What goes into the file: Zotero annotations live in Zotero, not in the PDF.
+const fileModel = (m = S.model) => ({ ...m, pages: m.pages.map((p) => ({ ...p, annots: p.annots.filter((a) => !a.z) })) });
+const fileSnap = () => JSON.stringify(fileModel().pages);
+const isDirty = () => !!S.pdf && (fileSnap() !== S.savedSnap || !!S.zotero?.pending);
 function updateDirty() {
   const d = isDirty();
   if (active >= 0 && tabs[active]) {
@@ -164,6 +170,7 @@ function pushUndo(snap = snapshot()) {
   S.redo = [];
 }
 function changed(pagesTouched) {
+  S.zotero?.touch();
   updateDirty();
   for (const i of pagesTouched || []) markThumbStale(i);
 }
@@ -181,12 +188,13 @@ function guardEdit() {
 // stashed in their tab record together with their page and thumbnail DOM.
 const DOC_KEYS = [
   'path', 'name', 'baseBytes', 'readOnly', 'pdf', 'pdfPages', 'model', 'textCache', 'undo', 'redo',
-  'savedSnap', 'scale', 'fitMode', 'current', 'selPages', 'sel', 'pe', 'visible', 'search',
+  'savedSnap', 'scale', 'fitMode', 'current', 'selPages', 'sel', 'pe', 'visible', 'search', 'zotero',
 ];
 const blankDoc = () => ({
   path: null, name: null, baseBytes: null, readOnly: false, pdf: null, pdfPages: [], model: { pages: [] },
   textCache: new Map(), undo: [], redo: [], savedSnap: null, scale: 1, fitMode: 'width', current: 0,
   selPages: new Set(), sel: null, pe: [], visible: new Set(), search: { q: '', results: [], idx: -1, byPage: new Map() },
+  zotero: null,
 });
 const tabs = []; // { id, doc, pagesFrag, thumbsFrag, scrollTop, scrollLeft, thumbScroll, dirty }
 let active = -1;
@@ -234,6 +242,11 @@ function activate(i) {
   viewer.scrollTop = t.scrollTop || 0;
   viewer.scrollLeft = t.scrollLeft || 0;
   sidebar.scrollTop = t.thumbScroll || 0;
+  if (t.annotsStale) {
+    t.annotsStale = false;
+    renderAllAnnots();
+    S.model.pages.forEach((_, k) => markThumbStale(k));
+  }
   afterDocSwitch();
   if (t.searchOpen && S.search.q) {
     searchbar.hidden = false;
@@ -424,6 +437,7 @@ function afterDocSwitch() {
   $('#gotoInput').value = n ? S.current + 1 : '';
   updateZoomUI();
   updateThumbClasses(false);
+  showZoteroState();
   updateDirty();
 }
 
@@ -494,12 +508,15 @@ async function openPath(p) {
   if (existing >= 0) {
     activate(existing);
     renderTabs();
-    return;
+    return true;
   }
   try {
     busy('Opening…');
     const bytes = await api.readFile(p);
     await loadBytes(bytes, p);
+    busy(null);
+    await autoLinkZotero(p);
+    return true;
   } catch (e) {
     console.error(e);
     busy(null);
@@ -537,7 +554,7 @@ async function loadBytes(bytes, p) {
   S.model = {
     pages: pdfPages.map((_, i) => ({ src: i, rot: 0, annots: imported.annotsBySrc[i] || [] })),
   };
-  S.savedSnap = snapshot();
+  S.savedSnap = fileSnap();
   S.selPages = new Set([0]);
   searchbar.hidden = true;
   searchInput.value = '';
@@ -560,7 +577,9 @@ async function closeTab(i = active) {
     activate(i);
     renderTabs();
   }
+  if (S.zotero?.pending) await S.zotero.push();
   if (!(await confirmDiscard())) return;
+  if (S.zotero) S.zotero.closed = true;
   closeSearch();
   pageObserver.disconnect();
   thumbObserver.disconnect();
@@ -600,6 +619,15 @@ async function saveAllAndClose() {
 async function save(asNew) {
   if (!guardEdit()) return false;
   commitEdits();
+  if (S.zotero && !asNew) return saveZotero();
+  if (S.zotero && asNew) {
+    const ok = await api.confirm(
+      'Save As makes a copy outside Zotero, with all the annotations written into the PDF. This tab will then show the copy, and Zotero keeps the original with its annotations.',
+      ['Make a copy', 'Cancel'],
+    );
+    if (ok !== 0) return false;
+    await S.zotero.push();
+  }
   let p = S.path;
   if (asNew || !p) {
     p = await api.saveDialog(S.path || S.name);
@@ -609,9 +637,10 @@ async function save(asNew) {
     busy('Saving…');
     const bytes = await buildPdf(S.baseBytes, S.model, S.author);
     await api.writeFile(p, bytes);
+    if (S.zotero) unlinkZotero();
     S.path = p;
     S.name = p.split(/[\\/]/).pop();
-    S.savedSnap = snapshot();
+    S.savedSnap = fileSnap();
     updateDirty();
     renderTabs();
     status(`Saved ${S.name}`);
@@ -1011,6 +1040,7 @@ function deleteAnnot(page = S.sel?.page, id = S.sel?.id, undoSnap) {
 }
 
 function addAnnot(page, a) {
+  if (S.zotero) a.z = true;
   S.model.pages[page].annots.push(a);
 }
 
@@ -1812,6 +1842,10 @@ function rotatePages(delta, list = targetPages()) {
 
 function deletePages(list = targetPages()) {
   if (!guardEdit()) return;
+  if (S.zotero) {
+    api.error('Pages cannot be deleted from a Zotero PDF, because Zotero places its annotations by page. Use Extract Pages to make a copy without them.');
+    return;
+  }
   commitEdits();
   if (list.length >= S.model.pages.length) {
     api.error('You cannot delete every page of the document.');
@@ -2023,6 +2057,420 @@ async function saveNotes() {
   }
 }
 
+// ---------------------------------------------------------------- Zotero
+const zState = $('#zoteroState');
+
+function showZoteroState() {
+  zState.hidden = !S.zotero;
+  if (!S.zotero) return;
+  zState.className = S.zotero.stateKind || '';
+  zState.textContent = S.zotero.state || 'Zotero';
+  zState.title = `${S.zotero.title || S.name}\nAnnotations are saved to Zotero as you work.${
+    S.zotero.hidden ? `\nZotero also has ${S.zotero.hidden} drawing or image annotation(s), which PDFacil keeps but cannot show.` : ''
+  }`;
+}
+
+const zHooks = {
+  api: (method, p, opts) => api.zotero.api(method, p, opts),
+  newId,
+  state(link, text, kind) {
+    link.stateKind = kind;
+    if (S.zotero === link) {
+      showZoteroState();
+      updateDirty();
+    } else {
+      const t = tabs.find((x) => x.doc.zotero === link);
+      if (t && t.dirty !== link.pending) {
+        t.dirty = !!link.pending;
+        renderTabs();
+      }
+    }
+  },
+  refresh(link, pages) {
+    if (S.zotero === link) {
+      for (const i of pages) {
+        renderAnnots(i);
+        markThumbStale(i);
+      }
+      updateDirty();
+    } else {
+      const t = tabs.find((x) => x.doc.zotero === link);
+      if (t) t.annotsStale = true;
+    }
+  },
+};
+
+function linkZotero(info) {
+  let link;
+  const owner = () => (link.closed ? null : S.zotero === link ? S : tabs.find((t) => t.doc.zotero === link)?.doc);
+  link = new ZoteroLink(info, owner, zHooks);
+  link.local = !!info.local;
+  S.zotero = link;
+  // Annotations already in the file stay in the file; new ones go to Zotero.
+  showZoteroState();
+  return link.pull();
+}
+
+function unlinkZotero() {
+  const link = S.zotero;
+  if (!link) return;
+  clearTimeout(link.timer);
+  link.closed = true;
+  for (const p of S.model.pages) for (const a of p.annots) delete a.z;
+  S.zotero = null;
+  showZoteroState();
+}
+
+async function saveZotero() {
+  const ok = await S.zotero.push();
+  if (!ok) {
+    api.error(`The annotations could not be saved to Zotero.\n\n${S.zotero.state}\n\nThey stay in this tab; PDFacil will try again.`);
+    return false;
+  }
+  if (fileSnap() !== S.savedSnap) {
+    if (!S.zotero.local) {
+      api.error('This PDF was downloaded from Zotero, so changes to the file itself (rotated pages, annotations made before it was linked) cannot be saved back. Use Save As to keep a copy.');
+      return false;
+    }
+    try {
+      busy('Saving…');
+      await api.writeFile(S.path, await buildPdf(S.baseBytes, fileModel(), S.author));
+      S.savedSnap = fileSnap();
+    } catch (e) {
+      api.error(`Could not save the file.\n\n${e?.message || e}`);
+      return false;
+    } finally {
+      busy(null);
+    }
+  }
+  updateDirty();
+  renderTabs();
+  status('Saved to Zotero');
+  return true;
+}
+
+let zCfg = null;
+const zotLibs = () => (zCfg ? [{ path: `/users/${zCfg.userID}`, name: 'My Library' }, ...zCfg.groups.map((g) => ({ path: `/groups/${g.id}`, name: g.name }))] : []);
+
+async function findAttachment(attKey) {
+  zCfg = await api.zotero.config();
+  if (!zCfg.connected) return null;
+  for (const lib of zotLibs()) {
+    const r = await api.zotero.api('GET', `${lib.path}/items/${attKey}`).catch(() => null);
+    if (r?.status === 200 && r.data?.data?.itemType === 'attachment') return { lib: lib.path, item: r.data };
+  }
+  return null;
+}
+
+async function itemTitle(lib, att) {
+  const parent = att.data.parentItem;
+  if (parent) {
+    const r = await api.zotero.api('GET', `${lib}/items/${parent}`).catch(() => null);
+    if (r?.status === 200) return { itemKey: parent, title: r.data.data.title || att.data.title };
+  }
+  return { itemKey: null, title: att.data.title };
+}
+
+// A PDF opened from Zotero's storage folder (for example with Zotero's "Open PDFs using") is linked to its
+// Zotero item, so its annotations sync too.
+async function autoLinkZotero(p) {
+  if (S.zotero || S.path !== p) return;
+  const key = await api.zotero.keyForPath(p).catch(() => null);
+  if (!key) return;
+  const found = await findAttachment(key);
+  if (!found || S.path !== p || S.zotero) return;
+  const t = await itemTitle(found.lib, found.item);
+  await linkZotero({ lib: found.lib, attKey: key, ...t, local: true });
+  status(`Linked to Zotero: ${S.zotero.title || S.name}`, 5000);
+}
+
+async function openZoteroAttachment(lib, att) {
+  busy('Finding the PDF…');
+  let file;
+  try {
+    file = await api.zotero.file(lib, att.key, att.data);
+  } catch (e) {
+    busy(null);
+    api.error(String(e?.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''));
+    return false;
+  }
+  busy(null);
+  if (!(await openPath(file.path))) return false;
+  if (!S.zotero) {
+    const t = await itemTitle(lib, att);
+    await linkZotero({ lib, attKey: att.key, ...t, local: file.local });
+    status(`Opened from Zotero: ${S.zotero.title || S.name}`, 5000);
+  }
+  return true;
+}
+
+window.addEventListener('focus', () => {
+  if (S.zotero && Date.now() - S.zotero.lastPull > 15000) S.zotero.pull();
+});
+setInterval(() => {
+  if (S.zotero && document.hasFocus() && Date.now() - S.zotero.lastPull > 120000) S.zotero.pull();
+}, 30000);
+
+// ---- the library browser
+const zDlg = $('#zoteroDlg');
+const zb = { lib: null, coll: null, q: '', start: 0, items: [], sel: null, att: null, seq: 0 };
+
+function zMsg(text, err) {
+  const m = $('#zMsg');
+  m.textContent = text || '';
+  m.classList.toggle('err', !!err);
+}
+
+async function openZoteroBrowser() {
+  zCfg = await api.zotero.config();
+  if (!zCfg.connected) return openZoteroSettings(true);
+  const sel = $('#zLib');
+  sel.innerHTML = '';
+  for (const l of zotLibs()) {
+    const o = document.createElement('option');
+    o.value = l.path;
+    o.textContent = l.name;
+    sel.append(o);
+  }
+  if (zb.lib && zotLibs().some((l) => l.path === zb.lib)) sel.value = zb.lib;
+  zb.lib = sel.value;
+  zDlg.hidden = false;
+  $('#zSearch').focus();
+  await loadCollections();
+  await loadItems(true);
+}
+const closeZotero = () => (zDlg.hidden = true);
+
+async function zGetAll(p, query) {
+  const out = [];
+  for (let start = 0; start < 5000; start += 100) {
+    const r = await api.zotero.api('GET', p, { query: { ...query, limit: 100, start } });
+    if (r.offline) throw new Error('Zotero cannot be reached. Check the internet connection.');
+    if (r.status !== 200) throw new Error(`Zotero answered ${r.status}.`);
+    out.push(...r.data);
+    if (r.data.length < 100) break;
+  }
+  return out;
+}
+
+async function loadCollections() {
+  const ul = $('#zColls');
+  ul.innerHTML = '';
+  let colls = [];
+  try {
+    colls = await zGetAll(`${zb.lib}/collections`, {});
+  } catch (e) {
+    zMsg(e.message, true);
+  }
+  const kids = new Map();
+  for (const c of colls) {
+    const parent = c.data.parentCollection || '';
+    if (!kids.has(parent)) kids.set(parent, []);
+    kids.get(parent).push(c);
+  }
+  const add = (key, name, depth) => {
+    const li = document.createElement('li');
+    li.textContent = name;
+    li.style.paddingLeft = `${10 + depth * 14}px`;
+    li.dataset.key = key;
+    li.classList.toggle('on', (zb.coll || '') === key);
+    ul.append(li);
+  };
+  add('', 'All items', 0);
+  const walk = (parent, depth) => {
+    for (const c of (kids.get(parent) || []).sort((a, b) => a.data.name.localeCompare(b.data.name))) {
+      add(c.key, c.data.name, depth);
+      walk(c.key, depth + 1);
+    }
+  };
+  walk('', 0);
+}
+
+const zYear = (it) => (it.meta?.parsedDate || '').slice(0, 4);
+
+async function loadItems(reset) {
+  const seq = ++zb.seq;
+  if (reset) {
+    zb.start = 0;
+    zb.items = [];
+    zb.sel = zb.att = null;
+    $('#zOpen').disabled = true;
+  }
+  zMsg('Loading…');
+  const p = zb.coll ? `${zb.lib}/collections/${zb.coll}/items/top` : `${zb.lib}/items/top`;
+  const r = await api.zotero.api('GET', p, {
+    query: { q: zb.q, qmode: 'titleCreatorYear', itemType: '-note', sort: zb.q ? 'title' : 'dateModified', direction: zb.q ? 'asc' : 'desc', limit: 50, start: zb.start },
+  });
+  if (seq !== zb.seq) return;
+  if (r.offline || r.status !== 200) {
+    zMsg(r.offline ? 'Zotero cannot be reached. Check the internet connection.' : `Zotero answered ${r.status}.`, true);
+    return;
+  }
+  zb.items.push(...r.data);
+  zb.start += r.data.length;
+  $('#zMore').hidden = !(r.total && zb.start < r.total);
+  zMsg(r.total ? `${r.total} item${r.total === 1 ? '' : 's'}` : '');
+  renderItems();
+}
+
+function renderItems() {
+  const ul = $('#zItems');
+  ul.innerHTML = '';
+  if (!zb.items.length) {
+    ul.innerHTML = `<li class="zempty">${zb.q ? 'Nothing matches that search.' : 'No items here.'}</li>`;
+    return;
+  }
+  for (const it of zb.items) {
+    const li = document.createElement('li');
+    li.dataset.key = it.key;
+    li.classList.toggle('on', zb.sel?.key === it.key);
+    const t = document.createElement('div');
+    t.className = 'zt';
+    t.textContent = it.data.title || '(untitled)';
+    const m = document.createElement('div');
+    m.className = 'zm';
+    m.textContent = [it.meta?.creatorSummary, zYear(it), it.data.publicationTitle].filter(Boolean).join(' · ');
+    li.append(t, m);
+    if (zb.sel?.key === it.key && zb.sel.pdfs) {
+      const sub = document.createElement('ul');
+      sub.className = 'zpdfs';
+      if (!zb.sel.pdfs.length) sub.innerHTML = '<li class="znone">No PDF attached to this item.</li>';
+      for (const a of zb.sel.pdfs) {
+        const s = document.createElement('li');
+        s.dataset.att = a.key;
+        s.textContent = a.data.title || a.data.filename || 'PDF';
+        s.classList.toggle('on', zb.att?.key === a.key);
+        sub.append(s);
+      }
+      li.append(sub);
+    }
+    ul.append(li);
+  }
+}
+
+async function selectItem(key) {
+  const it = zb.items.find((x) => x.key === key);
+  if (!it) return;
+  zb.sel = { key, pdfs: null };
+  zb.att = null;
+  $('#zOpen').disabled = true;
+  renderItems();
+  let pdfs = [];
+  if (it.data.itemType === 'attachment') pdfs = it.data.contentType === 'application/pdf' ? [it] : [];
+  else {
+    const r = await api.zotero.api('GET', `${zb.lib}/items/${key}/children`, { query: { itemType: 'attachment' } });
+    if (r.status === 200) pdfs = r.data.filter((a) => a.data.contentType === 'application/pdf');
+  }
+  if (zb.sel?.key !== key) return;
+  zb.sel.pdfs = pdfs;
+  zb.att = pdfs[0] || null;
+  $('#zOpen').disabled = !zb.att;
+  renderItems();
+}
+
+async function zoteroOpen() {
+  if (!zb.att) return;
+  const att = zb.att;
+  closeZotero();
+  await openZoteroAttachment(zb.lib, att);
+}
+
+$('#zLib').addEventListener('change', async (e) => {
+  zb.lib = e.target.value;
+  zb.coll = null;
+  await loadCollections();
+  await loadItems(true);
+});
+let zSearchTimer;
+$('#zSearch').addEventListener('input', (e) => {
+  clearTimeout(zSearchTimer);
+  zSearchTimer = setTimeout(() => {
+    zb.q = e.target.value.trim();
+    loadItems(true);
+  }, 300);
+});
+$('#zSearch').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && zb.att) zoteroOpen();
+});
+$('#zColls').addEventListener('click', (e) => {
+  const li = e.target.closest('li');
+  if (!li) return;
+  zb.coll = li.dataset.key || null;
+  $$('#zColls li').forEach((x) => x.classList.toggle('on', x === li));
+  loadItems(true);
+});
+$('#zItems').addEventListener('click', (e) => {
+  const s = e.target.closest('[data-att]');
+  if (s) {
+    zb.att = zb.sel?.pdfs?.find((a) => a.key === s.dataset.att) || null;
+    $('#zOpen').disabled = !zb.att;
+    renderItems();
+    return;
+  }
+  const li = e.target.closest('li[data-key]');
+  if (li && li.dataset.key !== zb.sel?.key) selectItem(li.dataset.key);
+});
+$('#zItems').addEventListener('dblclick', (e) => {
+  if (e.target.closest('li[data-key], [data-att]') && zb.att) zoteroOpen();
+});
+$('#zMore').addEventListener('click', () => loadItems(false));
+
+// ---- settings
+const zsDlg = $('#zoteroSetDlg');
+let zsThenBrowse = false;
+
+async function openZoteroSettings(thenBrowse = false) {
+  zsThenBrowse = thenBrowse === true;
+  zCfg = await api.zotero.config();
+  $('#zsWho').textContent = zCfg.connected
+    ? `Connected as ${zCfg.username || `user ${zCfg.userID}`}${zCfg.groups.length ? `, with ${zCfg.groups.length} group librar${zCfg.groups.length === 1 ? 'y' : 'ies'}` : ''}. Paste a new key only to change it.`
+    : 'Connect PDFacil to your Zotero account to open your PDFs and save annotations to Zotero.';
+  $('#zsKey').value = '';
+  $('#zsData').value = zCfg.dataDir;
+  $('#zsBase').value = zCfg.baseDir;
+  $('#zsDisconnect').hidden = !zCfg.connected;
+  $('#zsMsg').textContent = '';
+  zsDlg.hidden = false;
+  closeZotero();
+  $('#zsKey').focus();
+}
+const closeZoteroSettings = () => (zsDlg.hidden = true);
+
+async function zoteroSave() {
+  const key = $('#zsKey').value.trim();
+  const data = $('#zsData').value.trim();
+  const base = $('#zsBase').value.trim();
+  const msg = $('#zsMsg');
+  msg.classList.remove('err');
+  try {
+    if (key) {
+      msg.textContent = 'Checking the key with Zotero…';
+      zCfg = await api.zotero.connect(key, data, base);
+    } else if (zCfg?.connected) zCfg = await api.zotero.folders(data, base);
+    else throw new Error('Paste your Zotero API key first.');
+  } catch (e) {
+    msg.textContent = String(e?.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, '');
+    msg.classList.add('err');
+    return;
+  }
+  closeZoteroSettings();
+  status(`Connected to Zotero as ${zCfg.username || zCfg.userID}`, 4000);
+  if (zsThenBrowse) openZoteroBrowser();
+}
+
+async function zoteroDisconnect() {
+  const r = await api.confirm('Disconnect PDFacil from Zotero? The key is removed from this computer. Open Zotero PDFs stop syncing.', ['Disconnect', 'Cancel']);
+  if (r !== 0) return;
+  zCfg = await api.zotero.disconnect();
+  closeZoteroSettings();
+  status('Disconnected from Zotero', 4000);
+}
+
+async function pickInto(sel, title) {
+  const p = await api.pickFolder(title, $(sel).value || undefined);
+  if (p) $(sel).value = p;
+}
+
 function rebuildAfterStructure(focusPage) {
   buildPagesDOM();
   buildThumbs();
@@ -2039,6 +2487,7 @@ function restore(snap) {
   const next = JSON.parse(snap);
   S.model.pages = next;
   S.sel = null;
+  S.zotero?.touch();
   const structural = old.length !== next.length || old.some((p, k) => p.src !== next[k].src || p.rot !== next[k].rot);
   if (structural) {
     rebuildAfterStructure(Math.min(S.current, next.length - 1));
@@ -2397,6 +2846,15 @@ const commands = {
   rotateRight: () => rotatePages(90),
   deletePages: () => deletePages(),
   extractPages: () => extractPages(),
+  zotero: () => openZoteroBrowser(),
+  zoteroSettings: () => openZoteroSettings(),
+  closeZotero,
+  zoteroOpen,
+  closeZoteroSettings,
+  zoteroSave,
+  zoteroDisconnect,
+  zoteroPickData: () => pickInto('#zsData', 'Zotero data folder'),
+  zoteroPickBase: () => pickInto('#zsBase', 'Linked attachment base folder'),
   copyNotes,
   saveNotes,
   mergePdfs: openMerge,
@@ -2507,13 +2965,13 @@ setRibbonCollapsed(ribbonCollapsed);
 const isEditable = (el) => el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
 
 window.addEventListener('keydown', (e) => {
-  // The merge dialog is modal: only Escape, Tab and Enter (on its buttons) work while it is open.
-  if (!mergeDlg.hidden) {
+  // Dialogs are modal: Escape closes them, their fields take typing, other shortcuts are off.
+  const dlg = [zsDlg, zDlg, mergeDlg].find((d) => !d.hidden);
+  if (dlg) {
     if (e.key === 'Escape') {
       e.preventDefault();
-      closeMerge();
-    }
-    if (!['Tab', 'Enter', ' '].includes(e.key)) e.preventDefault();
+      ({ zoteroSetDlg: closeZoteroSettings, zoteroDlg: closeZotero, mergeDlg: closeMerge })[dlg.id]();
+    } else if (!isEditable(document.activeElement) && !['Tab', 'Enter', ' ', 'ArrowUp', 'ArrowDown'].includes(e.key)) e.preventDefault();
     return;
   }
   const ctrl = e.ctrlKey || e.metaKey;
@@ -2672,4 +3130,4 @@ refreshRecent();
 api.startupPath().then((p) => p && openPath(p));
 
 // test hook (used by automated tests only)
-window.__pdfacil = { S, collectNotes, tabs, getActive: () => active, activate, closeTab, openPath, save, setTool, highlightSelection, deletePages, rotatePages, undo, redo, runSearch, setScale, buildPdf };
+window.__pdfacil = { S, collectNotes, openZoteroAttachment, openZoteroBrowser, tabs, getActive: () => active, activate, closeTab, openPath, save, setTool, highlightSelection, deletePages, rotatePages, undo, redo, runSearch, setScale, buildPdf };

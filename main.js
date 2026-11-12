@@ -3,8 +3,12 @@ const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron')
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
+const zotero = require('./zotero-main');
 
 const isMac = process.platform === 'darwin';
+
+// Tests run with their own settings folder.
+if (process.env.PDFACIL_USER_DATA) app.setPath('userData', process.env.PDFACIL_USER_DATA);
 
 let win = null;
 let isDirty = false;
@@ -159,6 +163,13 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 // ---------- IPC ----------
+zotero.register();
+
+ipcMain.handle('pick-folder', async (_e, title, defaultPath) => {
+  const r = await dialog.showOpenDialog(win, { title, defaultPath, properties: ['openDirectory'] });
+  return r.canceled ? null : r.filePaths[0];
+});
+
 ipcMain.handle('startup-path', () => {
   const p = pendingOpenPath;
   pendingOpenPath = null;
