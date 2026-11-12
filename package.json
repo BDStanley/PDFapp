@@ -8,7 +8,7 @@
     "start": "electron .",
     "dist": "electron-builder --win dir --x64 && node scripts/copy-exe.js",
     "test": "node test/smoke.cjs",
-    "dist:mac": "electron-builder --mac --universal"
+    "dist:mac": "electron-builder --mac --universal --publish never"
   },
   "author": "Uri Simonsohn",
   "license": "CC-BY-NC-4.0",
@@ -73,7 +73,8 @@
       ],
       "icon": "build/icon-mac.png",
       "category": "public.app-category.productivity",
-      "identity": "-"
+      "identity": "-",
+      "hardenedRuntime": false
     },
     "dmg": {
       "title": "PDFacil"
