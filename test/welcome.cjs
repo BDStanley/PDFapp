@@ -3,16 +3,34 @@ const path = require('path');
 const fs = require('fs');
 const root = path.join(__dirname, '..');
 const out = path.join(__dirname, 'out');
+// Sample files for the recent list, created fresh in a temp folder.
+function makeFixtures() {
+  const os = require('os');
+  const rootDir = path.join(os.tmpdir(), 'pdfacil-recent-test');
+  const deep = path.join(rootDir, 'Documents', 'Research', 'Literature review - 2026', 'papers', 'cited by chapter 3');
+  const dl = path.join(rootDir, 'Downloads');
+  fs.mkdirSync(deep, { recursive: true });
+  fs.mkdirSync(dl, { recursive: true });
+  const sample = path.join(__dirname, 'sample.pdf');
+  const longName = path.join(dl, 'Smith et al 2025 - A very long title about measuring behavior with open ended survey responses.pdf');
+  const shortName = path.join(dl, 'Preregistration #1234.pdf');
+  fs.copyFileSync(sample, longName);
+  fs.copyFileSync(sample, shortName);
+  for (let i = 1; i <= 40; i++) fs.copyFileSync(sample, path.join(deep, `Paper-${String(i).padStart(3, '0')}-Author-${1970 + i}.pdf`));
+  return { deep, longName, shortName };
+}
+
 (async () => {
   const app = await electron.launch({ executablePath: require(path.join(root, 'node_modules', 'electron')), args: ['--no-sandbox', root] });
   const ud = await app.evaluate(({ app }) => app.getPath('userData'));
   const files = [];
-  const base = '/tmp/rt/dropbox/research/Confounds Protocols - JCR/papers/JCR citing NW';
+  const fx = makeFixtures();
+  const base = fx.deep;
   const now = Date.now();
-  files.push({ path: '/tmp/rt/Downloads/8326 - Haaland et al 2025 understanding economic behavior using open ended survey data and large language models.pdf', time: now - 20 * 60000 });
-  files.push({ path: '/tmp/rt/Downloads/AsPredicted #157290.pdf', time: now - 26 * 3600000 });
+  files.push({ path: fx.longName, time: now - 20 * 60000 });
+  files.push({ path: fx.shortName, time: now - 26 * 3600000 });
   fs.readdirSync(base).forEach((f, k) => files.push({ path: path.join(base, f), time: now - (k + 2) * 86400000 * 1.7 }));
-  files.splice(5, 0, '/tmp/rt/Downloads/AsPredicted #157290.pdf'); // old-format entry (string, duplicate)
+  files.splice(5, 0, fx.shortName); // old-format entry (string, duplicate)
   files.push({ path: '/tmp/does/not/exist.pdf', time: now });
   fs.mkdirSync(ud, { recursive: true });
   fs.writeFileSync(path.join(ud, 'recent.json'), JSON.stringify(files));

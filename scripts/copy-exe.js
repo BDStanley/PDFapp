@@ -1,10 +1,14 @@
-// After building, copy the app folder (dist/win-unpacked) out of the repo.
-// Default target: C:/program files (by claude)/PDFacil. Override with the PDFACIL_OUT environment variable.
+// After `npm run dist`, optionally copy the built app (dist/win-unpacked) to another folder.
+// Set the PDFACIL_OUT environment variable to that folder; without it, nothing is copied.
 // Close PDFacil before running this, otherwise Windows keeps the old files locked.
 const fs = require('fs');
 const path = require('path');
 const src = path.join(__dirname, '..', 'dist', 'win-unpacked');
-const outDir = process.env.PDFACIL_OUT || 'C:/program files (by claude)/PDFacil';
+const outDir = process.env.PDFACIL_OUT;
+if (!outDir) {
+  console.log('Built the app in dist/win-unpacked. (Set PDFACIL_OUT to also copy it elsewhere.)');
+  process.exit(0);
+}
 try {
   fs.mkdirSync(outDir, { recursive: true });
   fs.cpSync(src, outDir, { recursive: true, force: true });

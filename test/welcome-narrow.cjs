@@ -3,12 +3,30 @@ const path = require('path');
 const fs = require('fs');
 const root = path.join(__dirname, '..');
 const out = path.join(__dirname, 'out');
+// Sample files for the recent list, created fresh in a temp folder.
+function makeFixtures() {
+  const os = require('os');
+  const rootDir = path.join(os.tmpdir(), 'pdfacil-recent-test');
+  const deep = path.join(rootDir, 'Documents', 'Research', 'Literature review - 2026', 'papers', 'cited by chapter 3');
+  const dl = path.join(rootDir, 'Downloads');
+  fs.mkdirSync(deep, { recursive: true });
+  fs.mkdirSync(dl, { recursive: true });
+  const sample = path.join(__dirname, 'sample.pdf');
+  const longName = path.join(dl, 'Smith et al 2025 - A very long title about measuring behavior with open ended survey responses.pdf');
+  const shortName = path.join(dl, 'Preregistration #1234.pdf');
+  fs.copyFileSync(sample, longName);
+  fs.copyFileSync(sample, shortName);
+  for (let i = 1; i <= 40; i++) fs.copyFileSync(sample, path.join(deep, `Paper-${String(i).padStart(3, '0')}-Author-${1970 + i}.pdf`));
+  return { deep, longName, shortName };
+}
+
 (async () => {
   const app = await electron.launch({ executablePath: require(path.join(root, 'node_modules', 'electron')), args: ['--no-sandbox', root] });
   const ud = await app.evaluate(({ app }) => app.getPath('userData'));
-  const base = '/tmp/rt/dropbox/research/Confounds Protocols - JCR/papers/JCR citing NW';
+  const fx = makeFixtures();
+  const base = fx.deep;
   const now = Date.now();
-  const files = [{ path: '/tmp/rt/Downloads/8326 - Haaland et al 2025 understanding economic behavior using open ended survey data and large language models.pdf', time: now }]
+  const files = [{ path: fx.longName, time: now }]
     .concat(fs.readdirSync(base).slice(0, 12).map((f, k) => ({ path: path.join(base, f), time: now - (k + 1) * 86400000 })));
   fs.writeFileSync(path.join(ud, 'recent.json'), JSON.stringify(files));
   const win = await app.firstWindow();

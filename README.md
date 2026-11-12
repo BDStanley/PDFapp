@@ -1,49 +1,50 @@
 # PDFacil
 
-An easy PDF viewer and editor for Windows, with a Word-style ribbon.
+This is a Windows PDF viewer designed for researchers who read papers in PDF format.
+The Home menu on top has all the tools one needs:
 
-## Run
-Run `PDFacil.exe` in `C:/program files (by claude)/PDFacil` (the whole folder is the app; it is not stored in this repo). No installation needed, and it starts in about a second.
-Tip: right-click any PDF > Open with > Choose another app > browse to the exe, to open PDFs with PDFacil.
+(fácil: 'easy', in Spanish)
 
-## Ribbon
-- **Home** (opens first): Open, Save, Print, Delete page, Rotate left/right, Select, Highlight, Text, Comment, Outline, Thumbnails
-- **File**: Open, Save, Save As, Print, Recent, Close
-- **Pages**: First/Previous/Next/Last, Go to page, Rotate left/right, Delete page
-- **Comment**: Select, Highlight, Text, Comment (sticky note), colors, font, font size, Remove
-- **View**: Zoom in/out, 100%, Fit width, Fit page, Search, Outline, Thumbnails
-- **Start screen**: a drop box with a Select button on the left, and a table of up to 100 recent files (folder, file, last opened) on the right. Right-click a row to remove it from the list
-- **Outline**: a clickable table of contents on the left. Uses the PDF's bookmarks; if it has none, headings are detected from the text size. The current section is highlighted as you scroll
-- **Text formatting**: right-click a text box you typed to change its font (Arial, Times New Roman, Courier New), size and color
-- **Hide the ribbon**: the arrow at the top right (or Ctrl+F1, or double-click a tab) collapses the ribbon for more reading space; click a tab to use it temporarily
-- **Tabs**: open several PDFs at once; each gets a tab (Ctrl+Tab to switch, Ctrl+W or middle-click to close)
-- **About** (File tab or F1): designed by Uri Simonsohn, created with Claude Opus 5.5 (High), November 11, 2026
+![The PDFacil Home menu](images/menu_screenshot.png)
 
-## Shortcuts
-| Keys | Action |
-|---|---|
-| Ctrl+O / Ctrl+S / Ctrl+Shift+S | Open / Save / Save As |
-| Ctrl+P | Print |
-| Ctrl+Z / Ctrl+Y | Undo / Redo |
-| Ctrl+F, F3 | Search, next match |
-| Ctrl+G | Go to page |
-| Ctrl + mouse wheel, Ctrl +/-, Ctrl+0 | Zoom, 100% |
-| V / H / T / N | Select / Highlight / Text / Comment tool |
-| Delete | Remove selected highlight, text or comment (or selected pages in the thumbnail bar) |
-| Esc | Finish editing, back to Select |
-| Ctrl+Tab / Ctrl+Shift+Tab | Next / previous file tab |
-| Ctrl+W | Close current tab |
-| Ctrl+F1 | Hide / show the ribbon |
-| F1 | About PDFacil |
 
-Highlights, text boxes and comments are saved as standard PDF annotations, so Acrobat, Edge and Chrome show them. Reopening a file in PDFacil makes them editable again.
+## Installation (Windows only)
 
-## Build from source
-Requires Node.js 20 or newer.
+1. Download the zip file
+2. Unzip it
+3. Run `PDFacil.exe`
+
+
+
+### If you want to build from source 
+
+You need [Node.js](https://nodejs.org/) 20 or newer.
+
 ```
-npm install               # also copies pdf.js / pdf-lib into src/vendor
-npm start                 # run in development
-npm run dist              # build dist/win-unpacked, then copy it to C:/program files (by claude)/PDFacil
+git clone <this repository>
+cd PDFacil
+npm install       # installs dependencies and copies the PDF libraries into src/vendor
+npm start         # runs the app for development
+npm run dist      # builds the Windows app into dist/win-unpacked
 ```
-Close PDFacil before `npm run dist` so the old files are not locked. To copy the app somewhere else, set `PDFACIL_OUT` first, e.g. `set PDFACIL_OUT=D:\apps` (cmd).
-The built app is never stored in git (see `.gitignore`).
+
+The finished app is the `dist/win-unpacked` folder; run `PDFacil.exe` inside it. To have `npm run dist` also copy the app to another folder, set the `PDFACIL_OUT` environment variable to that folder first. Close PDFacil before rebuilding, or Windows will keep the old files locked.
+
+## How it was made
+
+PDFacil was designed by Uri Simonsohn and written with Claude Opus 5.5 (Anthropic's AI model). 
+Version 1.0.0 was developed in November, 2026
+
+It is built on open-source components:
+
+- [Electron](https://www.electronjs.org/) for the desktop app
+- [PDF.js](https://mozilla.github.io/pdf.js/) (Mozilla) for displaying, searching and printing PDFs
+- [pdf-lib](https://pdf-lib.js.org/) for saving edits into the PDF
+
+
+
+## License
+
+PDFacil is licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/): you may share and adapt it for non-commercial purposes, with credit to the author. Commercial use is not permitted.
+
+The components it builds on have their own open-source licenses: Electron (MIT), PDF.js (Apache 2.0) and pdf-lib (MIT).

@@ -9,8 +9,8 @@
     "dist": "electron-builder --win dir --x64 && node scripts/copy-exe.js",
     "test": "node test/smoke.cjs"
   },
-  "author": "PDFacil",
-  "license": "UNLICENSED",
+  "author": "Uri Simonsohn",
+  "license": "CC-BY-NC-4.0",
   "dependencies": {
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^4.10.38"
