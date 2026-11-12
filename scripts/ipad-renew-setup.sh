@@ -20,7 +20,8 @@ if [ "${1:-}" = "--remove" ]; then
 fi
 
 PBX="ios/App/App.xcodeproj/project.pbxproj"
-TEAM=$(grep -m1 -o 'DEVELOPMENT_TEAM = [A-Z0-9]*;' "$PBX" | sed 's/.* = //; s/;//' || true)
+TEAM=$(grep -m1 -o 'DEVELOPMENT_TEAM = [A-Z0-9]*' ios/signing.xcconfig 2>/dev/null | sed 's/.* = //' || true)
+[ -n "$TEAM" ] || TEAM=$(grep -m1 -o 'DEVELOPMENT_TEAM = [A-Z0-9]*;' "$PBX" | sed 's/.* = //; s/;//' || true)
 BUNDLE=$(grep -m1 -o 'PRODUCT_BUNDLE_IDENTIFIER = [^;]*;' "$PBX" | sed 's/.* = //; s/;//; s/"//g' || true)
 if [ -z "$TEAM" ]; then
   echo "No signing team in the Xcode project yet."

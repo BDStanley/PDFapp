@@ -1,1 +1,5 @@
 CAPACITOR_DEBUG = true
+
+// Your signing team, kept out of git (ios/signing.xcconfig, one line: DEVELOPMENT_TEAM = ABCDE12345), so that
+// choosing it in Xcode never edits the project file and updates never clash with it.
+#include? "signing.xcconfig"

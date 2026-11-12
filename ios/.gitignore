@@ -12,3 +12,6 @@ capacitor-cordova-ios-plugins
 App/App/capacitor.config.json
 App/App/config.xml
 App/build-renew/
+
+# Your own signing team (see debug.xcconfig)
+signing.xcconfig

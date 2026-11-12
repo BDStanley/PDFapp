@@ -131,6 +131,11 @@ PDFapp runs on the iPad too, with the same features. The app is the same code as
    This builds the web part and opens the project in Xcode.
 2. In Xcode, go to *Settings › Accounts*, click *+*, and add your Apple ID.
 3. Click the *App* project, then the *App* target, then *Signing & Capabilities*, and set *Team* to your name (Personal Team).
+   Then move the team out of the project file, so updates never clash with it: put it in `ios/signing.xcconfig` (ignored by git), which the project reads, and undo Xcode's edit:
+   ```
+   TEAM=$(grep -m1 -o 'DEVELOPMENT_TEAM = [A-Z0-9]*' ios/App/App.xcodeproj/project.pbxproj | sed 's/.* = //')
+   echo "DEVELOPMENT_TEAM = $TEAM" > ios/signing.xcconfig && git checkout -- ios/App/App.xcodeproj/project.pbxproj
+   ```
 4. Connect the iPad and choose it at the top of the window. The first time:
    - on the iPad, turn on *Settings › Privacy & Security › Developer Mode* and restart it;
    - after the first install, trust your Apple ID on the iPad, under *Settings › General › VPN & Device Management*.
