@@ -3212,8 +3212,30 @@ document.addEventListener('click', (e) => {
     commands[b.dataset.cmd]();
   }
   const t = e.target.closest('[data-tool]');
-  if (t && S.pdf) setTool(t.dataset.tool);
+  if (t && S.pdf) {
+    setTool(t.dataset.tool);
+    // Highlight clicked (or tapped) with text selected on a page: highlight that text.
+    if (t.dataset.tool === 'highlight' && hlPending) {
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(hlPending);
+      highlightSelection();
+    }
+  }
+  hlPending = null;
 });
+// The selection as it was when the Highlight button was pressed, before the press can clear it.
+let hlPending = null;
+document.addEventListener('pointerdown', (e) => {
+  hlPending = null;
+  if (!e.target.closest('[data-tool=highlight]')) return;
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount || sel.isCollapsed) return;
+  const r = sel.getRangeAt(0);
+  const node = r.commonAncestorContainer;
+  const el = node.nodeType === 1 ? node : node.parentElement;
+  if (el && el.closest('#pages')) hlPending = r.cloneRange();
+}, true);
 
 // ---------------------------------------------------------------- ribbon tabs & collapse
 let ribbonCollapsed = false;
