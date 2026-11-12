@@ -144,6 +144,18 @@ PDFapp runs on the iPad too, with the same features. The app is the same code as
 
 A free Apple ID allows three apps at a time through AltStore, AltStore itself included.
 
+**Renewing it automatically** (no AltStore needed). Your Mac can rebuild PDFapp and reinstall it on the iPad over Wi-Fi twice a week, so the 7 days never run out. It fetches the latest version of PDFapp each time.
+
+1. Run PDFapp on the iPad once from Xcode, as above, with your Personal Team chosen. Xcode then knows the iPad.
+2. In the PDFapp folder, run:
+   ```
+   bash scripts/ipad-renew-setup.sh
+   ```
+   This records your team and your iPad in `~/.config/pdfapp/ipad.conf` and schedules the renewal for Monday and Thursday at 20:07. If the Mac is asleep then, macOS runs it when it wakes.
+3. To try it at once, run `bash scripts/ipad-renew.sh`.
+
+Each renewal ends with a Mac notification saying whether it worked, and the details are in `~/Library/Logs/PDFapp-renew.log`. It needs the Mac logged in and the iPad on the same Wi-Fi. To switch it off, run `bash scripts/ipad-renew-setup.sh --remove`.
+
 ## Installing on Windows
 
 To build PDFapp for Windows, you need [Node.js](https://nodejs.org/) 20 or newer:
