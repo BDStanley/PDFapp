@@ -27,7 +27,7 @@ if (fs.existsSync(md)) fs.unlinkSync(md);
   const win = await app.firstWindow();
   const errors = [];
   win.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
-  await win.waitForFunction(() => window.__pdfacil?.S.pdf && document.querySelector('.page[data-idx="0"] .textLayer span'), null, { timeout: 20000 });
+  await win.waitForFunction(() => window.__pdfapp?.S.pdf && document.querySelector('.page[data-idx="0"] .textLayer span'), null, { timeout: 20000 });
 
   // Highlight across two lines of page 1 by dragging over text.
   await win.click('.tab[data-tab=comment]');
@@ -40,13 +40,13 @@ if (fs.existsSync(md)) fs.unlinkSync(md);
   await win.mouse.move(b2.x + b2.width - 1, b2.y + b2.height / 2, { steps: 10 });
   await win.mouse.up();
   await win.waitForTimeout(200);
-  const selText = await win.evaluate(() => window.__pdfacil.S.model.pages[0].annots[0]?.text);
+  const selText = await win.evaluate(() => window.__pdfapp.S.model.pages[0].annots[0]?.text);
   console.log('stored text:', JSON.stringify(selText));
   if (!selText) throw new Error('highlight has no stored text');
 
   // The same highlight, worked out from position only.
   const geoText = await win.evaluate(async () => {
-    const { S } = window.__pdfacil;
+    const { S } = window.__pdfapp;
     const a = S.model.pages[0].annots[0];
     const { textUnderQuads } = await import('./notes.js');
     return textUnderQuads(await S.pdfPages[0].getTextContent(), a.quads);
@@ -56,7 +56,7 @@ if (fs.existsSync(md)) fs.unlinkSync(md);
   if (norm(geoText) !== norm(selText)) console.log('NOTE: position-based text differs from the selection');
 
   // A comment on the highlight, a sticky note and a text box.
-  await win.evaluate(() => (window.__pdfacil.S.model.pages[0].annots[0].contents = 'Key claim for chapter 2.'));
+  await win.evaluate(() => (window.__pdfapp.S.model.pages[0].annots[0].contents = 'Key claim for chapter 2.'));
   const pg = await (await win.$('.page[data-idx="0"]')).boundingBox();
   await win.click('.panel.active [data-tool=note]');
   await win.mouse.click(pg.x + 80, pg.y + 400);
@@ -86,11 +86,11 @@ if (fs.existsSync(md)) fs.unlinkSync(md);
   if (recent.some((r) => /\.md$/.test(r.path))) throw new Error('notes file added to Recent');
 
   // The stored text survives saving and reopening the PDF.
-  await win.evaluate(() => window.__pdfacil.save(false));
-  await win.evaluate(() => window.__pdfacil.closeTab());
-  await win.evaluate((p) => window.__pdfacil.openPath(p), pdf);
-  await win.waitForFunction(() => window.__pdfacil.S.pdf);
-  const reopened = await win.evaluate(() => window.__pdfacil.S.model.pages[0].annots.find((a) => a.type === 'highlight')?.text);
+  await win.evaluate(() => window.__pdfapp.save(false));
+  await win.evaluate(() => window.__pdfapp.closeTab());
+  await win.evaluate((p) => window.__pdfapp.openPath(p), pdf);
+  await win.waitForFunction(() => window.__pdfapp.S.pdf);
+  const reopened = await win.evaluate(() => window.__pdfapp.S.model.pages[0].annots.find((a) => a.type === 'highlight')?.text);
   console.log('text after reopening:', JSON.stringify(reopened));
   if (reopened !== selText) throw new Error('stored text lost on save');
 

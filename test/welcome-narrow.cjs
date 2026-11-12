@@ -6,7 +6,7 @@ const out = path.join(__dirname, 'out');
 // Sample files for the recent list, created fresh in a temp folder.
 function makeFixtures() {
   const os = require('os');
-  const rootDir = path.join(os.tmpdir(), 'pdfacil-recent-test');
+  const rootDir = path.join(os.tmpdir(), 'pdfapp-recent-test');
   const deep = path.join(rootDir, 'Documents', 'Research', 'Literature review - 2026', 'papers', 'cited by chapter 3');
   const dl = path.join(rootDir, 'Downloads');
   fs.mkdirSync(deep, { recursive: true });

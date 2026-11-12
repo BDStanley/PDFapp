@@ -426,3 +426,32 @@ button:focus { outline: none; }
 button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #aboutDlg .primary { padding: 7px 26px; border: 1px solid var(--brand); background: var(--brand); color: #fff; border-radius: 6px; cursor: pointer; font-weight: 500; }
 #aboutDlg .primary:hover { background: var(--brand-dark); }
+
+/* page grid: every page as a thumbnail in the main view */
+#grid { position: absolute; inset: 0; z-index: 30; background: var(--bg); overflow: auto; outline: none; }
+#grid[hidden] { display: none; }
+.gbar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: var(--ribbon); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.gbar .gtitle { font-size: 17px; font-weight: 300; color: var(--brand); margin-right: 6px; }
+.gbar #gridInfo { color: var(--muted); font-size: 12.5px; }
+.gbar #gridInfo b { color: var(--accent); font-weight: 500; }
+.gbar .spacer { flex: 1; }
+.gbar button { padding: 5px 14px; border: 1px solid var(--border); background: #fff; border-radius: 6px; cursor: pointer; font: inherit; }
+.gbar button:hover { background: var(--hover); }
+.gbar button.primary { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 500; }
+.gbar button.primary:hover { background: var(--brand-dark); }
+.gbar .gsize { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12.5px; margin: 0 6px; }
+.gbar .gsize input { width: 110px; accent-color: var(--brand); }
+#gridCells { position: relative; display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--cell, 180px) + 28px), 1fr)); gap: 16px 10px; padding: 18px 20px 60px; user-select: none; align-items: start; }
+.gcell { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 8px 8px; border-radius: 8px; border: 2px solid transparent; cursor: pointer; }
+.gcell:hover { background: var(--hover); }
+.gcell .gbox { background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+.gcell canvas { display: block; width: 100%; height: 100%; }
+.gcell.current .gbox { outline: 2px solid #9a9a9a; outline-offset: 2px; }
+.gcell.selected { background: var(--accent-tint); border-color: var(--accent); }
+.gnum { font-size: 12px; color: var(--muted); }
+.gcell.selected .gnum { color: var(--accent); font-weight: 500; }
+.gcheck { position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; border-radius: 50%; background: rgba(255,255,255,.9); border: 1.5px solid #9a9a9a; opacity: 0; transition: opacity .1s; display: grid; place-items: center; color: #fff; font-size: 14px; line-height: 1; }
+.gcell:hover .gcheck, .gcell.selected .gcheck, #grid.picking .gcheck { opacity: 1; }
+.gcell.selected .gcheck { background: var(--accent); border-color: var(--accent); }
+.gcell.selected .gcheck::after { content: '✓'; }
+.gband { position: absolute; border: 1px solid var(--accent); background: rgba(165, 44, 96, .12); pointer-events: none; z-index: 1; }

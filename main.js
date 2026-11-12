@@ -1,4 +1,4 @@
-// PDFacil - main process
+// PDFapp - main process
 const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -8,7 +8,35 @@ const zotero = require('./zotero-main');
 const isMac = process.platform === 'darwin';
 
 // Tests run with their own settings folder.
-if (process.env.PDFACIL_USER_DATA) app.setPath('userData', process.env.PDFACIL_USER_DATA);
+const testData = process.env.PDFAPP_USER_DATA;
+if (testData) app.setPath('userData', testData);
+
+// The app was called PDFacil until November 2026. The first time PDFapp runs, it brings over the recent
+// files and the Zotero folder settings from PDFacil's settings folder. The Zotero key is not brought
+// over: it is encrypted with a keychain entry named after the app, so it has to be pasted in once more.
+function migrateFromPDFacil() {
+  if (testData) return;
+  const now = app.getPath('userData');
+  const old = path.join(app.getPath('appData'), 'PDFacil');
+  if (path.resolve(now) === path.resolve(old) || !fs.existsSync(old)) return;
+  const marker = path.join(now, 'migrated-from-pdfacil');
+  if (fs.existsSync(marker)) return;
+  try {
+    fs.mkdirSync(now, { recursive: true });
+    const recentOld = path.join(old, 'recent.json');
+    const recentNew = path.join(now, 'recent.json');
+    if (fs.existsSync(recentOld) && !fs.existsSync(recentNew)) fs.copyFileSync(recentOld, recentNew);
+    const zOld = path.join(old, 'zotero.json');
+    const zNew = path.join(now, 'zotero.json');
+    if (fs.existsSync(zOld) && !fs.existsSync(zNew)) {
+      const cfg = JSON.parse(fs.readFileSync(zOld, 'utf8'));
+      delete cfg.keyEnc; // cannot be decrypted under the new name
+      fs.writeFileSync(zNew, JSON.stringify(cfg, null, 2), { mode: 0o600 });
+    }
+    fs.writeFileSync(marker, new Date().toISOString());
+  } catch {}
+}
+migrateFromPDFacil();
 
 let win = null;
 let isDirty = false;
@@ -70,7 +98,7 @@ function createWindow() {
     height: 900,
     minWidth: 800,
     minHeight: 500,
-    title: 'PDFacil',
+    title: 'PDFapp',
     icon: path.join(__dirname, 'build', 'icon.png'),
     backgroundColor: '#f3f3f3',
     show: false,
@@ -111,7 +139,7 @@ function createWindow() {
       buttons: ['Save', "Don't save", 'Cancel'],
       defaultId: 0,
       cancelId: 2,
-      title: 'PDFacil',
+      title: 'PDFapp',
       message: 'Do you want to save your changes?',
     });
     if (choice === 0) win.webContents.send('save-and-close');
@@ -210,7 +238,7 @@ ipcMain.handle('save-dialog', async (_e, suggested, kind) => {
 
 ipcMain.handle('write-file', async (_e, p, bytes) => {
   // Write to a temp file first, then replace, so a failure never corrupts the original.
-  const tmp = p + '.pdfacil-tmp';
+  const tmp = p + '.pdfapp-tmp';
   await fs.promises.writeFile(tmp, Buffer.from(bytes));
   await fs.promises.rename(tmp, p);
   if (/\.pdf$/i.test(p)) addRecent(p);
@@ -223,14 +251,14 @@ ipcMain.handle('confirm', async (_e, message, buttons) => {
     buttons,
     defaultId: 0,
     cancelId: buttons.length - 1,
-    title: 'PDFacil',
+    title: 'PDFapp',
     message,
   });
   return r.response;
 });
 
 ipcMain.handle('error', async (_e, message) => {
-  await dialog.showMessageBox(win, { type: 'error', title: 'PDFacil', message });
+  await dialog.showMessageBox(win, { type: 'error', title: 'PDFapp', message });
 });
 
 ipcMain.on('set-dirty', (_e, v) => {
@@ -246,7 +274,7 @@ ipcMain.on('force-close', () => {
 
 // Print: renderer sends one PNG per page; we lay them out and open the system print dialog.
 ipcMain.handle('print-pages', async (_e, pages) => {
-  const dir = await fs.promises.mkdtemp(path.join(app.getPath('temp'), 'pdfacil-print-'));
+  const dir = await fs.promises.mkdtemp(path.join(app.getPath('temp'), 'pdfapp-print-'));
   const imgs = [];
   for (let i = 0; i < pages.length; i++) {
     const f = path.join(dir, `p${i}.png`);

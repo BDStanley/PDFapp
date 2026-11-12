@@ -18,7 +18,7 @@ const out = path.join(__dirname, 'out');
   console.log('thumbs hidden:', await win.$eval('#sidebar', (s) => s.classList.contains('hidden')), 'view btn active:', await win.$eval('[data-panel=view] [data-cmd=toggleThumbs]', (b) => b.classList.contains('active')));
   await win.click('.panel.active [data-cmd=toggleThumbs]');
   await win.click('.panel.active [data-tool=select]');
-  console.log('rot:', await win.evaluate(() => window.__pdfacil.S.model.pages[0].rot));
+  console.log('rot:', await win.evaluate(() => window.__pdfapp.S.model.pages[0].rot));
   await win.keyboard.press('Control+z');
   await win.waitForTimeout(400);
   await win.screenshot({ path: path.join(out, '13-home.png') });

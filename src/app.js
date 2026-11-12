@@ -1,4 +1,4 @@
-// PDFacil - renderer
+// PDFapp - renderer
 import * as pdfjsLib from './vendor/pdf.min.mjs';
 import {
   importAnnotations, buildPdf, copyPagesToNew, mergePdfs, HIGHLIGHT_COLORS, newId, wrapLines, TEXT_PAD, LINE_FACTOR, TEXT_FONTS, fontOf,
@@ -72,6 +72,7 @@ const ICONS = {
   saveNotes: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M12 12v6m-3-3 3 3 3-3"/>',
   zotero: '<path d="M5 4h14v3L9 17h10v3H5v-3L15 7H5z"/>',
   settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  grid: '<rect x="3" y="3" width="7.5" height="7.5" rx="1"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7.5v.01" stroke-width="2.4"/>',
 };
 const svg = (name) =>
@@ -124,7 +125,7 @@ const S = {
   pe: [], // per page element refs
   visible: new Set(),
   search: { q: '', results: [], idx: -1, byPage: new Map() },
-  author: api.username || 'PDFacil',
+  author: api.username || 'PDFapp',
 };
 
 const rgbCss = (c, a = 1) => `rgba(${c.map((v) => Math.round(v * 255)).join(',')},${a})`;
@@ -160,7 +161,7 @@ function updateDirty() {
     if (was !== d) renderTabs();
   }
   api.setDirty(tabs.some((t) => t.dirty));
-  api.setTitle(S.name ? `${d ? '• ' : ''}${S.name} - PDFacil${S.readOnly ? ' (read-only)' : ''}` : 'PDFacil');
+  api.setTitle(S.name ? `${d ? '• ' : ''}${S.name} - PDFapp${S.readOnly ? ' (read-only)' : ''}` : 'PDFapp');
   $('[data-cmd=undo]').disabled = !S.undo.length;
   $('[data-cmd=redo]').disabled = !S.redo.length;
 }
@@ -275,7 +276,7 @@ function setPanel(which, show) {
     if (b.classList.contains('big')) b.classList.toggle('active', show);
   });
   try {
-    localStorage.setItem(`pdfacil.show.${which}`, show ? '1' : '0');
+    localStorage.setItem(`pdfapp.show.${which}`, show ? '1' : '0');
   } catch {}
   if (which === 'outline' && show) renderOutline();
   if (which === 'thumbs' && show) updateThumbClasses(true);
@@ -438,6 +439,10 @@ function afterDocSwitch() {
   updateZoomUI();
   updateThumbClasses(false);
   showZoteroState();
+  if (gridOpen) {
+    if (S.pdf) buildGrid();
+    else closeGrid();
+  }
   updateDirty();
 }
 
@@ -521,7 +526,7 @@ async function openPath(p) {
     console.error(e);
     busy(null);
     const msg = /password/i.test(String(e?.name) + String(e?.message))
-      ? 'This PDF is password protected. PDFacil cannot open password protected files yet.'
+      ? 'This PDF is password protected. PDFapp cannot open password protected files yet.'
       : `Could not open this file.\n\n${e?.message || e}`;
     api.error(msg);
   } finally {
@@ -1755,6 +1760,11 @@ function markThumbStale(i) {
   clearTimeout(staleTimer);
   staleTimer = setTimeout(() => {
     for (const k of staleSet) {
+      const g = gridOpen && gridCells.children[k];
+      if (g) {
+        g._stale = true;
+        if (g._visible) renderGridCell(k);
+      }
       const t = thumbsDiv.children[k];
       if (!t) continue;
       t._stale = true;
@@ -1779,6 +1789,7 @@ function updateThumbClasses(scrollIntoView) {
   }
   const n = S.selPages.size;
   $('#pageSelInfo').textContent = n > 1 ? `${n} pages selected` : '';
+  updateGridClasses();
 }
 
 let lastThumbClick = 0;
@@ -1807,7 +1818,10 @@ thumbsDiv.addEventListener('contextmenu', (e) => {
   e.preventDefault();
   const t = e.target.closest('.thumb');
   if (!t) return;
-  const i = +t.dataset.idx;
+  pageMenu(e, +t.dataset.idx);
+});
+
+function pageMenu(e, i) {
   if (!S.selPages.has(i)) {
     S.selPages = new Set([i]);
     updateThumbClasses(false);
@@ -1822,6 +1836,238 @@ thumbsDiv.addEventListener('contextmenu', (e) => {
     '-',
     { label: `Extract ${what} as a new PDF…`, run: () => extractPages() },
   ]);
+}
+
+// ---------------------------------------------------------------- page grid
+// Every page as a thumbnail in the main view, for picking pages to extract, rotate or delete.
+// The selection is the same as the side thumbnails' (S.selPages).
+const grid = $('#grid');
+const gridCells = $('#gridCells');
+let gridOpen = false;
+let gridAnchor = 0;
+let gridSize = 180;
+try {
+  gridSize = Number(localStorage.getItem('pdfapp.gridSize')) || 180;
+} catch {}
+$('#gridSize').value = gridSize;
+
+const gridObserver = new IntersectionObserver(
+  (entries) => {
+    for (const e of entries) {
+      const c = e.target;
+      c._visible = e.isIntersecting;
+      if (e.isIntersecting && c._stale) renderGridCell(+c.dataset.idx);
+    }
+  },
+  { root: grid, rootMargin: '500px 0px' },
+);
+
+function buildGrid() {
+  gridObserver.disconnect();
+  gridQueue.clear();
+  gridCells.innerHTML = '';
+  gridCells.style.setProperty('--cell', `${gridSize}px`);
+  S.model.pages.forEach((_, i) => {
+    const vp1 = viewportFor(i, 1);
+    const ts = Math.min(gridSize / vp1.width, (gridSize * 1.42) / vp1.height);
+    const c = document.createElement('div');
+    c.className = 'gcell';
+    c.dataset.idx = i;
+    c.innerHTML = `<span class="gcheck" title="Select or unselect this page"></span><div class="gbox" style="width:${Math.round(vp1.width * ts)}px;height:${Math.round(vp1.height * ts)}px"></div><div class="gnum">${i + 1}</div>`;
+    c._ts = ts;
+    c._stale = true;
+    gridCells.append(c);
+    gridObserver.observe(c);
+  });
+  labelGrid();
+  updateGridClasses();
+}
+
+// Journal page numbers beside the PDF's own, where the PDF has them.
+async function labelGrid() {
+  const pdf = S.pdf;
+  const labels = await pdf?.getPageLabels().catch(() => null);
+  if (!labels || S.pdf !== pdf) return;
+  [...gridCells.children].forEach((c, i) => {
+    const l = labels[S.model.pages[i]?.src];
+    if (l && l !== String(i + 1)) c.querySelector('.gnum').textContent = `${i + 1} · p. ${l}`;
+  });
+}
+
+const gridQueue = new Set();
+let gridBusy = false;
+function renderGridCell(i) {
+  gridQueue.add(i);
+  if (!gridBusy) drainGrid();
+}
+async function drainGrid() {
+  gridBusy = true;
+  while (gridQueue.size) {
+    const i = gridQueue.values().next().value;
+    gridQueue.delete(i);
+    const c = gridCells.children[i];
+    if (!c || !c._visible || !S.model.pages[i] || !gridOpen) continue;
+    c._stale = false;
+    try {
+      const vp = viewportFor(i, c._ts * (window.devicePixelRatio || 1));
+      const cv = document.createElement('canvas');
+      cv.width = Math.floor(vp.width);
+      cv.height = Math.floor(vp.height);
+      const ctx = cv.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, cv.width, cv.height);
+      await S.pdfPages[S.model.pages[i].src].render({ canvasContext: ctx, viewport: vp, annotationMode: pdfjsLib.AnnotationMode.ENABLE }).promise;
+      drawAnnotsOnCanvas(ctx, vp, i);
+      const box = c.querySelector('.gbox');
+      box.innerHTML = '';
+      box.append(cv);
+    } catch (e) {
+      if (e?.name !== 'RenderingCancelledException') console.error(e);
+    }
+  }
+  gridBusy = false;
+}
+
+function updateGridClasses() {
+  if (!gridOpen) return;
+  [...gridCells.children].forEach((c, i) => {
+    c.classList.toggle('selected', S.selPages.has(i));
+    c.classList.toggle('current', i === S.current);
+  });
+  const n = S.selPages.size;
+  grid.classList.toggle('picking', n > 1);
+  $('#gridInfo').innerHTML = n
+    ? `<b>${n} of ${S.model.pages.length} selected</b> · ${esc(pageRanges([...S.selPages].sort((a, b) => a - b)))}`
+    : `${S.model.pages.length} pages. Click to select, ${kb('Ctrl+click')} or the circle to add, Shift-click for a range, or drag across pages. Double-click opens a page.`;
+}
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+function openGrid() {
+  if (!S.pdf) return;
+  commitEdits();
+  closeSearch();
+  gridOpen = true;
+  grid.hidden = false;
+  gridAnchor = S.current;
+  buildGrid();
+  $$('[data-cmd=toggleGrid]').forEach((b) => b.classList.toggle('active', true));
+  gridCells.children[S.current]?.scrollIntoView({ block: 'center' });
+  grid.focus();
+}
+function closeGrid() {
+  if (!gridOpen) return;
+  gridOpen = false;
+  grid.hidden = true;
+  gridObserver.disconnect();
+  gridQueue.clear();
+  gridCells.innerHTML = '';
+  $$('[data-cmd=toggleGrid]').forEach((b) => b.classList.toggle('active', false));
+  viewer.focus();
+}
+const toggleGrid = () => (gridOpen ? closeGrid() : openGrid());
+
+function gridPick(i, e) {
+  const add = e.ctrlKey || e.metaKey || !!e.target.closest?.('.gcheck');
+  if (e.shiftKey) {
+    const a = Math.min(gridAnchor, i);
+    const b = Math.max(gridAnchor, i);
+    const sel = add ? new Set(S.selPages) : new Set();
+    for (let k = a; k <= b; k++) sel.add(k);
+    S.selPages = sel;
+  } else if (add) {
+    if (S.selPages.has(i)) S.selPages.delete(i);
+    else S.selPages.add(i);
+  } else S.selPages = new Set([i]);
+  if (!e.shiftKey) gridAnchor = i;
+  S.current = i;
+  updateThumbClasses(false);
+}
+
+gridCells.addEventListener('click', (e) => {
+  const c = e.target.closest('.gcell');
+  if (c) gridPick(+c.dataset.idx, e);
+});
+gridCells.addEventListener('dblclick', (e) => {
+  const c = e.target.closest('.gcell');
+  if (!c || e.target.closest('.gcheck')) return;
+  const i = +c.dataset.idx;
+  closeGrid();
+  goToPage(i);
+});
+gridCells.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  const c = e.target.closest('.gcell');
+  if (c) pageMenu(e, +c.dataset.idx);
+});
+
+// Drag across the gaps between pages to select a block of them.
+grid.addEventListener('mousedown', (e) => {
+  if (e.button !== 0 || e.target.closest('.gcell, .gbar')) return;
+  e.preventDefault();
+  grid.focus();
+  const base = e.ctrlKey || e.metaKey || e.shiftKey ? new Set(S.selPages) : new Set();
+  const b0 = gridCells.getBoundingClientRect();
+  const sx = e.clientX - b0.left;
+  const sy = e.clientY - b0.top;
+  const band = document.createElement('div');
+  band.className = 'gband';
+  gridCells.append(band);
+  let last = null;
+  const pick = (cx, cy) => {
+    const b = gridCells.getBoundingClientRect();
+    const x = cx - b.left;
+    const y = cy - b.top;
+    const l = Math.min(sx, x);
+    const t = Math.min(sy, y);
+    const w = Math.abs(x - sx);
+    const h = Math.abs(y - sy);
+    Object.assign(band.style, { left: `${l}px`, top: `${t}px`, width: `${w}px`, height: `${h}px` });
+    const sel = new Set(base);
+    for (const c of gridCells.querySelectorAll('.gcell')) {
+      const r = c.getBoundingClientRect();
+      const cl = r.left - b.left;
+      const ct = r.top - b.top;
+      if (cl < l + w && cl + r.width > l && ct < t + h && ct + r.height > t) sel.add(+c.dataset.idx);
+    }
+    S.selPages = sel;
+    updateThumbClasses(false);
+  };
+  const move = (ev) => {
+    last = ev;
+    pick(ev.clientX, ev.clientY);
+  };
+  // Keep scrolling while the pointer is held near the top or bottom edge.
+  const scroller = setInterval(() => {
+    if (!last) return;
+    const gr = grid.getBoundingClientRect();
+    const dy = last.clientY > gr.bottom - 40 ? 18 : last.clientY < gr.top + 70 ? -18 : 0;
+    if (dy) {
+      grid.scrollTop += dy;
+      pick(last.clientX, last.clientY);
+    }
+  }, 30);
+  const up = () => {
+    clearInterval(scroller);
+    band.remove();
+    window.removeEventListener('mousemove', move);
+    window.removeEventListener('mouseup', up);
+  };
+  window.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', up);
+});
+
+let gridSizeTimer;
+$('#gridSize').addEventListener('input', (e) => {
+  gridSize = +e.target.value;
+  clearTimeout(gridSizeTimer);
+  gridSizeTimer = setTimeout(() => {
+    try {
+      localStorage.setItem('pdfapp.gridSize', String(gridSize));
+    } catch {}
+    const keep = grid.scrollTop / Math.max(1, grid.scrollHeight);
+    buildGrid();
+    grid.scrollTop = keep * grid.scrollHeight;
+  }, 120);
 });
 
 // ---------------------------------------------------------------- page commands
@@ -2066,7 +2312,7 @@ function showZoteroState() {
   zState.className = S.zotero.stateKind || '';
   zState.textContent = S.zotero.state || 'Zotero';
   zState.title = `${S.zotero.title || S.name}\nAnnotations are saved to Zotero as you work.${
-    S.zotero.hidden ? `\nZotero also has ${S.zotero.hidden} drawing or image annotation(s), which PDFacil keeps but cannot show.` : ''
+    S.zotero.hidden ? `\nZotero also has ${S.zotero.hidden} drawing or image annotation(s), which PDFapp keeps but cannot show.` : ''
   }`;
 }
 
@@ -2124,7 +2370,7 @@ function unlinkZotero() {
 async function saveZotero() {
   const ok = await S.zotero.push();
   if (!ok) {
-    api.error(`The annotations could not be saved to Zotero.\n\n${S.zotero.state}\n\nThey stay in this tab; PDFacil will try again.`);
+    api.error(`The annotations could not be saved to Zotero.\n\n${S.zotero.state}\n\nThey stay in this tab; PDFapp will try again.`);
     return false;
   }
   if (fileSnap() !== S.savedSnap) {
@@ -2424,7 +2670,7 @@ async function openZoteroSettings(thenBrowse = false) {
   zCfg = await api.zotero.config();
   $('#zsWho').textContent = zCfg.connected
     ? `Connected as ${zCfg.username || `user ${zCfg.userID}`}${zCfg.groups.length ? `, with ${zCfg.groups.length} group librar${zCfg.groups.length === 1 ? 'y' : 'ies'}` : ''}. Paste a new key only to change it.`
-    : 'Connect PDFacil to your Zotero account to open your PDFs and save annotations to Zotero.';
+    : 'Connect PDFapp to your Zotero account to open your PDFs and save annotations to Zotero.';
   $('#zsKey').value = '';
   $('#zsData').value = zCfg.dataDir;
   $('#zsBase').value = zCfg.baseDir;
@@ -2459,7 +2705,7 @@ async function zoteroSave() {
 }
 
 async function zoteroDisconnect() {
-  const r = await api.confirm('Disconnect PDFacil from Zotero? The key is removed from this computer. Open Zotero PDFs stop syncing.', ['Disconnect', 'Cancel']);
+  const r = await api.confirm('Disconnect PDFapp from Zotero? The key is removed from this computer. Open Zotero PDFs stop syncing.', ['Disconnect', 'Cancel']);
   if (r !== 0) return;
   zCfg = await api.zotero.disconnect();
   closeZoteroSettings();
@@ -2474,6 +2720,11 @@ async function pickInto(sel, title) {
 function rebuildAfterStructure(focusPage) {
   buildPagesDOM();
   buildThumbs();
+  if (gridOpen) {
+    const top = grid.scrollTop;
+    buildGrid();
+    grid.scrollTop = top;
+  }
   if (S.fitMode) applyFit();
   goToPage(focusPage);
   if (S.search.q) runSearch(S.search.q, true);
@@ -2846,6 +3097,15 @@ const commands = {
   rotateRight: () => rotatePages(90),
   deletePages: () => deletePages(),
   extractPages: () => extractPages(),
+  toggleGrid,
+  gridSelectAll: () => {
+    S.selPages = new Set(S.model.pages.map((_, i) => i));
+    updateThumbClasses(false);
+  },
+  gridClear: () => {
+    S.selPages = new Set();
+    updateThumbClasses(false);
+  },
   zotero: () => openZoteroBrowser(),
   zoteroSettings: () => openZoteroSettings(),
   closeZotero,
@@ -2907,7 +3167,7 @@ document.addEventListener('click', (e) => {
 // ---------------------------------------------------------------- ribbon tabs & collapse
 let ribbonCollapsed = false;
 try {
-  ribbonCollapsed = localStorage.getItem('pdfacil.ribbonCollapsed') === '1';
+  ribbonCollapsed = localStorage.getItem('pdfapp.ribbonCollapsed') === '1';
 } catch {}
 
 function showPanel(tab) {
@@ -2928,7 +3188,7 @@ function setRibbonCollapsed(v) {
   b.innerHTML = svg(v ? 'chevDown' : 'chevUp');
   b.title = kb(v ? 'Show the ribbon (Ctrl+F1)' : 'Hide the ribbon (Ctrl+F1)');
   try {
-    localStorage.setItem('pdfacil.ribbonCollapsed', v ? '1' : '0');
+    localStorage.setItem('pdfapp.ribbonCollapsed', v ? '1' : '0');
   } catch {}
   // The document area changed size.
   if (S.pdf && S.fitMode) setTimeout(applyFit, 0);
@@ -2977,6 +3237,36 @@ window.addEventListener('keydown', (e) => {
   const ctrl = e.ctrlKey || e.metaKey;
   const k = e.key.toLowerCase();
   const inEdit = isEditable(document.activeElement);
+
+  if (ctrl && e.shiftKey && k === 'g' && S.pdf) {
+    e.preventDefault();
+    toggleGrid();
+    return;
+  }
+  if (gridOpen && !inEdit) {
+    if (ctrl && k === 'a') {
+      e.preventDefault();
+      commands.gridSelectAll();
+      return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeGrid();
+      return;
+    }
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      e.preventDefault();
+      deletePages();
+      return;
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const i = S.current;
+      closeGrid();
+      goToPage(i);
+      return;
+    }
+  }
 
   if ((e.key === 'F1' && ctrl) || (IS_MAC && e.metaKey && e.shiftKey && k === 'r')) {
     e.preventDefault();
@@ -3117,7 +3407,7 @@ api.version().then((v) => ($('#aboutVersion').textContent = v));
 for (const which of ['thumbs', 'outline']) {
   let v = null;
   try {
-    v = localStorage.getItem(`pdfacil.show.${which}`);
+    v = localStorage.getItem(`pdfapp.show.${which}`);
   } catch {}
   if (v !== null) setPanel(which, v === '1');
 }
@@ -3130,4 +3420,4 @@ refreshRecent();
 api.startupPath().then((p) => p && openPath(p));
 
 // test hook (used by automated tests only)
-window.__pdfacil = { S, collectNotes, openZoteroAttachment, openZoteroBrowser, tabs, getActive: () => active, activate, closeTab, openPath, save, setTool, highlightSelection, deletePages, rotatePages, undo, redo, runSearch, setScale, buildPdf };
+window.__pdfapp = { S, toggleGrid, isGridOpen: () => gridOpen, collectNotes, openZoteroAttachment, openZoteroBrowser, tabs, getActive: () => active, activate, closeTab, openPath, save, setTool, highlightSelection, deletePages, rotatePages, undo, redo, runSearch, setScale, buildPdf };

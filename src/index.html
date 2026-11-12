@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; worker-src 'self' blob:; font-src 'self' data:; connect-src 'self' data: blob:" />
-  <title>PDFacil</title>
+  <title>PDFapp</title>
   <link rel="stylesheet" href="vendor/pdf_viewer.css" />
   <link rel="stylesheet" href="styles.css" />
   <script src="vendor/pdf-lib.min.js"></script>
@@ -24,7 +24,7 @@
       <button class="tab" data-tab="view">View</button>
     </nav>
     <button id="ribbonToggle" title="Hide the ribbon (Ctrl+F1)"></button>
-    <div class="brand">PDF<span>acil</span></div>
+    <div class="brand">PDF<span>app</span></div>
   </header>
 
   <!-- Ribbon -->
@@ -85,13 +85,13 @@
           </div>
           <button class="big" data-cmd="closeDoc" data-icon="close" title="Close this file (Ctrl+W)">Close</button>
           <button class="big" data-cmd="zotero" data-icon="zotero" title="Open a PDF from your Zotero library">Zotero</button>
-          <button class="big" data-cmd="zoteroSettings" data-icon="settings" title="Connect PDFacil to your Zotero account">Zotero Settings</button>
+          <button class="big" data-cmd="zoteroSettings" data-icon="settings" title="Connect PDFapp to your Zotero account">Zotero Settings</button>
         </div>
         <div class="glabel">Documents</div>
       </div>
       <div class="group">
         <div class="items">
-          <button class="big" data-cmd="about" data-icon="info" title="About PDFacil (F1)">About</button>
+          <button class="big" data-cmd="about" data-icon="info" title="About PDFapp (F1)">About</button>
         </div>
         <div class="glabel">Help</div>
       </div>
@@ -126,6 +126,7 @@
       </div>
       <div class="group">
         <div class="items">
+          <button class="big toggle" data-cmd="toggleGrid" data-icon="grid" title="Show every page as a thumbnail, to pick pages (Ctrl+Shift+G)">Page Grid</button>
           <button class="big" data-cmd="extractPages" data-icon="extract" title="Save the selected page(s) as a new PDF">Extract Pages</button>
           <button class="big" data-cmd="mergePdfs" data-icon="merge" title="Combine several PDFs into one">Merge PDFs</button>
         </div>
@@ -199,6 +200,7 @@
           <button class="big" data-cmd="find" data-icon="search" title="Search text (Ctrl+F)">Search</button>
           <button class="big toggle" data-cmd="toggleOutline" data-icon="outline" title="Show or hide the outline (click a heading to jump there)">Outline</button>
           <button class="big toggle active" data-cmd="toggleThumbs" data-icon="thumbs" title="Show or hide page thumbnails">Thumbnails</button>
+          <button class="big toggle" data-cmd="toggleGrid" data-icon="grid" title="Show every page as a thumbnail, to pick pages to extract, rotate or delete (Ctrl+Shift+G)">Page Grid</button>
         </div>
         <div class="glabel">Show</div>
       </div>
@@ -221,6 +223,19 @@
     <aside id="sidebar" tabindex="0"><div id="thumbs"></div></aside>
     <div id="viewerWrap">
       <div id="viewer" tabindex="0"><div id="pages"></div></div>
+      <div id="grid" tabindex="0" hidden>
+        <div class="gbar">
+          <span class="gtitle">All pages</span>
+          <span id="gridInfo"></span>
+          <span class="spacer"></span>
+          <button data-cmd="gridSelectAll" title="Select every page (Ctrl+A)">Select all</button>
+          <button data-cmd="gridClear">Select none</button>
+          <button class="primary" data-cmd="extractPages" title="Save the selected pages as a new PDF">Extract selected…</button>
+          <label class="gsize" title="Thumbnail size">Size <input id="gridSize" type="range" min="110" max="380" step="10" /></label>
+          <button data-cmd="toggleGrid" title="Back to the document (Esc)">Close</button>
+        </div>
+        <div id="gridCells"></div>
+      </div>
 
       <div id="searchbar" hidden>
         <input id="searchInput" type="text" placeholder="Search in document" />
@@ -278,15 +293,16 @@
     <div class="about-card" role="dialog" aria-labelledby="aboutTitle">
       <button class="about-x" data-cmd="closeAbout" title="Close (Esc)">✕</button>
       <img src="../build/icon.png" alt="" class="about-icon" />
-      <div class="logo" id="aboutTitle">PDF<span>acil</span></div>
+      <div class="logo" id="aboutTitle">PDF<span>app</span></div>
       <div class="about-ver">Version <span id="aboutVersion"></span></div>
-      <p class="about-tag">An easy PDF viewer and editor</p>
+      <p class="about-tag">A PDF viewer and editor for researchers</p>
       <dl class="about-facts">
         <dt>Designed by</dt><dd>Uri Simonsohn</dd>
-        <dt>Created with</dt><dd>Claude Opus 5.5 (High)</dd>
-        <dt>Date</dt><dd>November 11, 2026</dd>
+        <dt>Further developed by</dt><dd>Ben Stanley</dd>
+        <dt>Created with</dt><dd>Claude Opus 5.5</dd>
+        <dt>Date</dt><dd>November 2026</dd>
       </dl>
-      <p class="about-credits">Built with Electron, PDF.js and pdf-lib.</p>
+      <p class="about-credits">Based on PDFacil by Uri Simonsohn. Further developed by Ben Stanley: the macOS version, Zotero, notes, extracting and merging, the page grid and the design. Built with Electron, PDF.js and pdf-lib.</p>
       <button class="primary" data-cmd="closeAbout">OK</button>
     </div>
   </div>
@@ -332,7 +348,7 @@
       <div class="zform">
         <label for="zsKey">API key</label>
         <div><input id="zsKey" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your Zotero API key" />
-          <div class="zhelp">Create one at <a href="https://www.zotero.org/settings/keys/new" target="_blank">zotero.org/settings/keys/new</a> with <em>Allow library access</em> and <em>Allow write access</em> ticked (and access to groups, if you want them). PDFacil keeps it in your computer's keychain.</div></div>
+          <div class="zhelp">Create one at <a href="https://www.zotero.org/settings/keys/new" target="_blank">zotero.org/settings/keys/new</a> with <em>Allow library access</em> and <em>Allow write access</em> ticked (and access to groups, if you want them). PDFapp keeps it in your computer's keychain.</div></div>
         <label for="zsData">Zotero data folder</label>
         <div class="zrow"><input id="zsData" type="text" spellcheck="false" /><button data-cmd="zoteroPickData">Choose…</button></div>
         <label for="zsBase">Linked files folder</label>

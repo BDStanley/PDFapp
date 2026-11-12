@@ -1,4 +1,4 @@
-// PDFacil - reading and writing annotations with pdf-lib.
+// PDFapp - reading and writing annotations with pdf-lib.
 // Annotations are stored in PDF user space (unrotated page coordinates, origin bottom-left).
 /* global PDFLib */
 const {
@@ -9,7 +9,8 @@ const {
   appendBezierCurve, beginText, endText, setFontAndSize, moveText, showText,
 } = PDFLib;
 
-const MARK = 'PDFacilData'; // private key holding our own model JSON for exact round-trips
+const MARK = 'PDFappData'; // private key holding our own model JSON for exact round-trips
+const MARK_BEFORE_RENAME = 'PDFacilData'; // the same, as written before the app was renamed: still read
 
 export const HIGHLIGHT_COLORS = {
   yellow: [1, 0.92, 0.23],
@@ -19,7 +20,7 @@ export const HIGHLIGHT_COLORS = {
 };
 
 let idCounter = 0;
-export const newId = () => `pdfacil-${Date.now().toString(36)}-${(idCounter++).toString(36)}`;
+export const newId = () => `pdfapp-${Date.now().toString(36)}-${(idCounter++).toString(36)}`;
 
 const num = (o) => (o instanceof PDFNumber ? o.asNumber() : Number(o?.asNumber?.() ?? 0));
 const arr = (a) => (a instanceof PDFArray ? a.asArray().map(num) : null);
@@ -33,7 +34,7 @@ const textOf = (o) => {
 };
 
 /**
- * Load a PDF. Highlights, sticky notes, and PDFacil text boxes are lifted out of
+ * Load a PDF. Highlights, sticky notes, and PDFapp text boxes are lifted out of
  * the file into an editable model, so they can be moved, edited and deleted.
  * Returns { baseBytes, annotsBySrc, encrypted }.
  */
@@ -62,7 +63,7 @@ export async function importAnnotations(bytes) {
       const sub = dict.get(PDFName.of('Subtype'))?.toString();
       const color = arr(dict.lookupMaybe(PDFName.of('C'), PDFArray));
       const rgb = color && color.length === 3 ? color : null;
-      const mark = dict.get(PDFName.of(MARK));
+      const mark = dict.get(PDFName.of(MARK)) || dict.get(PDFName.of(MARK_BEFORE_RENAME));
       try {
         if (mark) {
           const data = JSON.parse(textOf(mark));
@@ -265,7 +266,7 @@ export async function buildPdf(baseBytes, model, author) {
   const pages = doc.getPages();
   const fonts = {};
   const now = PDFString.fromDate(new Date());
-  const authorStr = PDFHexString.fromText(author || 'PDFacil');
+  const authorStr = PDFHexString.fromText(author || 'PDFapp');
 
   for (const mp of model.pages) {
     const page = pages[mp.src];

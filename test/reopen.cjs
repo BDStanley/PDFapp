@@ -20,10 +20,10 @@ const out = path.join(__dirname, 'out');
   const errors = [];
   win.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
   win.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
-  await win.waitForFunction(() => window.__pdfacil?.S.pdf && document.querySelector('.page canvas.pc'), null, { timeout: 20000 });
+  await win.waitForFunction(() => window.__pdfapp?.S.pdf && document.querySelector('.page canvas.pc'), null, { timeout: 20000 });
   await win.waitForTimeout(800);
   const info = await win.evaluate(() => ({
-    annots: window.__pdfacil.S.model.pages.map((p) => p.annots.map((a) => a.type + (a.text ? ':' + a.text.slice(0, 12) : a.contents ? ':' + a.contents : ''))),
+    annots: window.__pdfapp.S.model.pages.map((p) => p.annots.map((a) => a.type + (a.text ? ':' + a.text.slice(0, 12) : a.contents ? ':' + a.contents : ''))),
     overflowX: viewer.scrollWidth - viewer.clientWidth,
     title: document.title,
   }));
@@ -41,7 +41,7 @@ const out = path.join(__dirname, 'out');
   const tb = await win.$('.page[data-idx="0"] .ann-text .tb');
   await tb.click();
   await win.keyboard.press('Delete');
-  console.log('after delete:', await win.evaluate(() => window.__pdfacil.S.model.pages[0].annots.length));
+  console.log('after delete:', await win.evaluate(() => window.__pdfapp.S.model.pages[0].annots.length));
   console.log('window title:', await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].getTitle()));
   // print
   await win.keyboard.press('Control+p');

@@ -1,10 +1,10 @@
-// PDFacil - Zotero annotations (page side).
+// PDFapp - Zotero annotations (page side).
 // Zotero keeps annotations as child items of a PDF attachment. Their positions are in PDF user space,
-// as PDFacil's are, and refer to the page index in the original file.
+// as PDFapp's are, and refer to the page index in the original file.
 import { textUnderQuads } from './notes.js';
 
-// PDFacil's four highlight swatches written as Zotero's own colours, so they match its reader.
-const PDFACIL_TO_ZOTERO = [
+// PDFapp's four highlight swatches written as Zotero's own colours, so they match its reader.
+const PDFAPP_TO_ZOTERO = [
   [[1, 0.92, 0.23], '#ffd400'], // yellow
   [[0.55, 0.9, 0.4], '#5fb236'], // green
   [[0.45, 0.8, 1], '#2ea8e5'], // blue
@@ -19,7 +19,7 @@ export function hexToRgb(hex) {
 }
 export function rgbToHex(rgb) {
   if (!rgb) return '#ffd400';
-  for (const [c, hex] of PDFACIL_TO_ZOTERO) if (c.every((v, k) => Math.abs(v - rgb[k]) < 0.02)) return hex;
+  for (const [c, hex] of PDFAPP_TO_ZOTERO) if (c.every((v, k) => Math.abs(v - rgb[k]) < 0.02)) return hex;
   return '#' + rgb.map((v) => Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16).padStart(2, '0')).join('');
 }
 
@@ -57,7 +57,7 @@ function textFromRect([x1, y1, x2, y2], rot) {
 
 const NOTE_HALF = 11; // Zotero draws comments as 22-point squares
 
-// Zotero item -> PDFacil annotation (with z: true), or null for kinds PDFacil cannot show (ink, image).
+// Zotero item -> PDFapp annotation (with z: true), or null for kinds PDFapp cannot show (ink, image).
 export function fromZotero(item, newId) {
   const d = item.data || item;
   let pos;
@@ -94,7 +94,7 @@ export function fromZotero(item, newId) {
 
 const pad = (n, w) => String(Math.max(0, Math.round(n))).padStart(w, '0').slice(-w);
 
-// PDFacil annotation -> Zotero annotation fields. page: { index, label, top } (top = the page's top edge in user space).
+// PDFapp annotation -> Zotero annotation fields. page: { index, label, top } (top = the page's top edge in user space).
 export function toZotero(a, page) {
   let rects;
   let extra = {};
@@ -130,7 +130,7 @@ const keyedJson = (o) => JSON.stringify(Object.keys(o).sort().reduce((m, k) => (
 
 // ------------------------------------------------------------------ sync
 // One ZoteroLink per open Zotero document. It knows the last state written to (or read from) Zotero for
-// each annotation, keyed by PDFacil's annotation id, so it can tell what changed on either side.
+// each annotation, keyed by PDFapp's annotation id, so it can tell what changed on either side.
 export class ZoteroLink {
   constructor({ lib, attKey, itemKey, title }, owner, hooks) {
     Object.assign(this, { lib, attKey, itemKey, title });
@@ -142,7 +142,7 @@ export class ZoteroLink {
     this.busy = null;
     this.timer = null;
     this.lastPull = 0;
-    this.hidden = 0; // annotations Zotero has that PDFacil cannot show
+    this.hidden = 0; // annotations Zotero has that PDFapp cannot show
     this.state = '';
   }
 
@@ -230,7 +230,7 @@ export class ZoteroLink {
     const pageOfSrc = (src) => doc.model.pages.findIndex((p) => p.src === src);
     let hidden = 0;
 
-    // Annotations PDFacil already has from Zotero.
+    // Annotations PDFapp already has from Zotero.
     for (const [id, s] of [...this.synced]) {
       const r = remote.get(s.key);
       const c = cur.get(id);
@@ -258,7 +258,7 @@ export class ZoteroLink {
         this.synced.set(id, { key: r.key, version: r.version, json: keyedJson(toZotero(conv.annot, info(conv.pageIndex))) });
       }
     }
-    // Annotations new to PDFacil.
+    // Annotations new to PDFapp.
     for (const r of items) {
       if (byKey.has(r.key)) continue;
       const conv = fromZotero(r, this.hooks.newId);

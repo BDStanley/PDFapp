@@ -1,4 +1,4 @@
-// PDFacil - Zotero connection (main process).
+// PDFapp - Zotero connection (main process).
 // The API key never reaches the page: it is stored encrypted with Electron's safeStorage (the macOS
 // Keychain, or the Windows user's DPAPI key) and added to requests here. The page can only reach the
 // libraries the key gives access to.
@@ -40,7 +40,7 @@ function apiKey() {
 }
 
 async function call(method, urlPath, { query, body, headers = {} } = {}, key = apiKey()) {
-  if (!key) throw new Error('PDFacil is not connected to Zotero.');
+  if (!key) throw new Error('PDFapp is not connected to Zotero.');
   const url = new URL(API + urlPath);
   for (const [k, v] of Object.entries(query || {})) if (v != null && v !== '') url.searchParams.set(k, String(v));
   const h = { 'Zotero-API-Key': key, 'Zotero-API-Version': '3', ...headers };
@@ -132,7 +132,7 @@ async function download(lib, attKey) {
   if (res.status === 404) {
     throw new Error(
       'Zotero has no copy of this PDF online. If you sync files with WebDAV or keep them as linked files, ' +
-        'set the Zotero data folder (and the linked-files folder) in PDFacil\'s Zotero settings so PDFacil can find the file on this computer.',
+        'set the Zotero data folder (and the linked-files folder) in PDFapp\'s Zotero settings so PDFapp can find the file on this computer.',
     );
   }
   if (!res.ok) throw new Error(`Zotero answered ${res.status} when asked for the PDF.`);
@@ -204,7 +204,7 @@ function register() {
     if (mode === 'linked_file') {
       let p = data.path || '';
       if (p.startsWith('attachments:')) {
-        if (!c.baseDir) throw new Error('This PDF is a linked file stored relative to Zotero\'s linked-files folder. Set that folder in PDFacil\'s Zotero settings.');
+        if (!c.baseDir) throw new Error('This PDF is a linked file stored relative to Zotero\'s linked-files folder. Set that folder in PDFapp\'s Zotero settings.');
         p = path.join(c.baseDir, p.slice('attachments:'.length));
       }
       if (p && fs.existsSync(p)) return { path: p, local: true };

@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer, webUtils } = require('electron');
 const os = require('os');
 
-let username = 'PDFacil';
+let username = 'PDFapp';
 try {
   username = os.userInfo().username || username;
 } catch {}

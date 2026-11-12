@@ -1,4 +1,4 @@
-// PDFacil - document outline panel (built-in PDF bookmarks, or headings detected from font sizes).
+// PDFapp - document outline panel (built-in PDF bookmarks, or headings detected from font sizes).
 
 /** Resolve a PDF.js outline tree into { title, target: { src, top, left }, children } items. */
 async function resolveItems(pdf, items, level, parent) {

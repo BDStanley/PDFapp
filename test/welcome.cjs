@@ -6,7 +6,7 @@ const out = path.join(__dirname, 'out');
 // Sample files for the recent list, created fresh in a temp folder.
 function makeFixtures() {
   const os = require('os');
-  const rootDir = path.join(os.tmpdir(), 'pdfacil-recent-test');
+  const rootDir = path.join(os.tmpdir(), 'pdfapp-recent-test');
   const deep = path.join(rootDir, 'Documents', 'Research', 'Literature review - 2026', 'papers', 'cited by chapter 3');
   const dl = path.join(rootDir, 'Downloads');
   fs.mkdirSync(deep, { recursive: true });
@@ -51,7 +51,7 @@ function makeFixtures() {
   // open from table, then close tab -> welcome again and it is first
   await win.click('#recentTable tbody tr:nth-child(4)');
   await win.waitForFunction(() => document.querySelector('.page canvas.pc'), null, { timeout: 20000 });
-  const opened = await win.evaluate(() => window.__pdfacil.S.name);
+  const opened = await win.evaluate(() => window.__pdfapp.S.name);
   await win.keyboard.press('Control+w');
   await win.waitForTimeout(400);
   console.log('opened', opened, '-> now first row:', await win.$eval('#recentTable tbody tr td.file', (td) => td.textContent), await win.$eval('#recentTable tbody tr td.time', (td) => td.textContent));

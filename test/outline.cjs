@@ -15,17 +15,17 @@ const out = path.join(__dirname, 'out');
   console.log('bookmarks:', JSON.stringify(await rows()));
   await win.click('.ol-row:has-text("Chapter 4 landscape")');
   await win.waitForTimeout(300);
-  console.log('after click page:', await win.evaluate(() => window.__pdfacil.S.current + 1), JSON.stringify((await rows()).filter((r) => r.includes('<=='))));
+  console.log('after click page:', await win.evaluate(() => window.__pdfapp.S.current + 1), JSON.stringify((await rows()).filter((r) => r.includes('<=='))));
   await win.screenshot({ path: path.join(out, '19-outline.png') });
   // scroll to page 6, highlight follows
-  await win.evaluate(() => window.__pdfacil.S.pe[5].el.scrollIntoView());
+  await win.evaluate(() => window.__pdfapp.S.pe[5].el.scrollIntoView());
   await win.waitForTimeout(400);
   console.log('after scroll:', JSON.stringify((await rows()).filter((r) => r.includes('<=='))));
   // collapse Part I
   await win.click('.ol-row:has-text("Part I") .ol-tw');
   console.log('collapsed:', JSON.stringify(await rows()));
   // second tab with no outline: auto headings
-  await win.evaluate((p) => window.__pdfacil.openPath(p), path.join(out, 'real.pdf'));
+  await win.evaluate((p) => window.__pdfapp.openPath(p), path.join(out, 'real.pdf'));
   await win.waitForSelector('#outlineNote:not(:empty)', { timeout: 20000 });
   await win.waitForTimeout(300);
   const auto = await rows();

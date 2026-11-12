@@ -1,4 +1,4 @@
-// A small stand-in for the Zotero web API (api.zotero.org), enough for PDFacil's tests.
+// A small stand-in for the Zotero web API (api.zotero.org), enough for PDFapp's tests.
 const http = require('http');
 
 function createMock(pdfBytes) {

@@ -1,7 +1,7 @@
 {
-  "name": "pdfacil",
-  "version": "1.1.0",
-  "description": "PDFacil - an easy PDF viewer and editor",
+  "name": "pdfapp",
+  "version": "1.2.0",
+  "description": "PDFapp - a PDF viewer and editor for researchers",
   "main": "main.js",
   "scripts": {
     "postinstall": "node scripts/copy-vendor.js",
@@ -20,10 +20,10 @@
     "electron": "^45.3.0",
     "electron-builder": "^26.18.0"
   },
-  "productName": "PDFacil",
+  "productName": "PDFapp",
   "build": {
-    "appId": "com.pdfacil.app",
-    "productName": "PDFacil",
+    "appId": "com.bdstanley.pdfapp",
+    "productName": "PDFapp",
     "files": [
       "main.js",
       "zotero-main.js",
@@ -78,7 +78,10 @@
       "hardenedRuntime": false
     },
     "dmg": {
-      "title": "PDFacil"
+      "title": "PDFapp"
     }
-  }
+  },
+  "contributors": [
+    "Ben Stanley"
+  ]
 }

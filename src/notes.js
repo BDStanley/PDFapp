@@ -1,4 +1,4 @@
-// PDFacil - turning highlights and comments into Markdown notes.
+// PDFapp - turning highlights and comments into Markdown notes.
 // Annotations are in PDF user space; pdf.js text content items are too, so the two can be compared directly.
 
 // Text from a selection Range that lies inside one page's text layer. Line ends in the text layer are
@@ -40,7 +40,7 @@ const boxOf = (q) => {
 };
 
 // Text under a highlight's quads, worked out from the positions of the page's text. Used for highlights
-// made before PDFacil kept their text, and for highlights made in other apps. Positions within a text
+// made before PDFapp kept their text, and for highlights made in other apps. Positions within a text
 // item are estimated by spreading its width evenly over its characters, so whole words are taken: a word
 // counts as highlighted when its middle lies inside a quad.
 export function textUnderQuads(textContent, quads) {
