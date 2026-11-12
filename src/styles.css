@@ -338,3 +338,28 @@ body.nodoc #sidebar, body.nodoc #outlinePanel { display: none; }
   .drop-logo { width: 44px; height: 44px; }
   .drop-title { font-size: 14px; }
 }
+
+/* merge dialog */
+.dlg { position: fixed; inset: 0; z-index: 1500; background: rgba(0,0,0,.35); display: grid; place-items: center; }
+.dlg[hidden] { display: none; }
+.dlg-card { position: relative; background: #fff; border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.3); padding: 22px 26px 20px; width: min(560px, 92vw); }
+.dlg-card h2 { margin: 0 0 4px; font-size: 18px; font-weight: 600; }
+.dlg-hint { color: var(--muted); margin: 0 0 12px; }
+#mergeList { list-style: none; margin: 0 0 16px; padding: 0; border: 1px solid var(--border); border-radius: 6px; max-height: 50vh; overflow-y: auto; counter-reset: m; }
+#mergeList:empty::before { content: 'No files yet. Click "Add files…".'; display: block; padding: 18px; color: var(--muted); text-align: center; }
+#mergeList li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-top: 1px solid #eee; counter-increment: m; }
+#mergeList li:first-child { border-top: 0; }
+#mergeList li::before { content: counter(m); color: var(--muted); width: 1.6em; text-align: right; flex: none; }
+#mergeList .mname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#mergeList .mtag { color: var(--muted); font-size: 11.5px; flex: none; }
+#mergeList button { border: 0; background: none; width: 26px; height: 26px; border-radius: 4px; cursor: pointer; color: #555; padding: 3px; flex: none; }
+#mergeList button:hover:not(:disabled) { background: #eee; }
+#mergeList button:disabled { opacity: .3; cursor: default; }
+#mergeList button svg { width: 18px; height: 18px; }
+.dlg-buttons { display: flex; gap: 8px; align-items: center; }
+.dlg-buttons .spacer { flex: 1; }
+.dlg-buttons button { padding: 6px 14px; border: 1px solid var(--border); background: #f7f7f7; border-radius: 6px; cursor: pointer; font: inherit; }
+.dlg-buttons button:hover { background: #eee; }
+.dlg-buttons button.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
+.dlg-buttons button.primary:hover { background: var(--brand-dark); }
+.dlg-buttons button:disabled { opacity: .45; cursor: default; }

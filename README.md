@@ -48,6 +48,8 @@ npm run dist:mac    # builds dist/PDFacil-<version>-universal.dmg and .zip
 **First launch:** drag PDFacil to Applications, then right-click it and choose *Open*. If macOS says it is damaged, run
 `xattr -dr com.apple.quarantine /Applications/PDFacil.app` in Terminal. To make it the default PDF viewer, select a PDF in Finder, *Get Info* › *Open with* › PDFacil › *Change All*.
 
+**Extract and merge (this fork):** in the *Pages* tab, *Extract Pages* saves the selected pages (⌘- or Ctrl-click thumbnails to pick several, or right-click a thumbnail) as a new PDF, with any unsaved highlights, comments and rotations. *Merge PDFs* (also under *File*) joins several PDFs in an order you set; the open document is included with its unsaved edits. The new file opens in a tab. Bookmarks (the outline) are not carried into the new file.
+
 On the Mac, shortcuts use ⌘ in place of Ctrl, redo is ⌘⇧Z, ⌘-click picks several thumbnails, and ⌘⇧R hides or shows the ribbon.
 
 ## How it was made

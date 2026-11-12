@@ -318,3 +318,27 @@ export async function buildPdf(baseBytes, model, author) {
 
   return doc.save();
 }
+
+// Copy the given pages (0-based, in this order) of a PDF into a new PDF.
+export async function copyPagesToNew(bytes, indices) {
+  const src = await PDFDocument.load(bytes, { updateMetadata: false });
+  const out = await PDFDocument.create();
+  for (const p of await out.copyPages(src, indices)) out.addPage(p);
+  return out.save();
+}
+
+// Join whole PDFs, in order. items: [{ name, bytes }]. Encrypted files cannot be copied.
+export async function mergePdfs(items) {
+  const out = await PDFDocument.create();
+  for (const it of items) {
+    let src;
+    try {
+      src = await PDFDocument.load(it.bytes, { updateMetadata: false });
+    } catch (e) {
+      const why = /encrypt/i.test(String(e?.message)) ? 'it is password protected' : e?.message || e;
+      throw new Error(`${it.name} could not be read: ${why}.`);
+    }
+    for (const p of await out.copyPages(src, src.getPageIndices())) out.addPage(p);
+  }
+  return out.save();
+}

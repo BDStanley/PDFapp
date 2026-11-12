@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('api', {
   removeRecent: (p) => ipcRenderer.invoke('remove-recent', p),
   openDialog: () => ipcRenderer.invoke('open-dialog'),
   readFile: (p) => ipcRenderer.invoke('read-file', p),
+  readBytes: (p) => ipcRenderer.invoke('read-bytes', p),
   saveDialog: (suggested) => ipcRenderer.invoke('save-dialog', suggested),
   writeFile: (p, bytes) => ipcRenderer.invoke('write-file', p, bytes),
   confirm: (msg, buttons) => ipcRenderer.invoke('confirm', msg, buttons),

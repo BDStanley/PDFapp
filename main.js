@@ -184,6 +184,9 @@ ipcMain.handle('read-file', async (_e, p) => {
   return new Uint8Array(buf);
 });
 
+// Merge inputs: read without adding them to the Recent list.
+ipcMain.handle('read-bytes', async (_e, p) => new Uint8Array(await fs.promises.readFile(p)));
+
 ipcMain.handle('save-dialog', async (_e, suggested) => {
   const r = await dialog.showSaveDialog(win, {
     title: 'Save PDF as',

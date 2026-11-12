@@ -72,6 +72,7 @@
       <div class="group">
         <div class="items">
           <button class="big" data-cmd="print" data-icon="print" title="Print (Ctrl+P)">Print</button>
+          <button class="big" data-cmd="mergePdfs" data-icon="merge" title="Combine several PDFs into one">Merge PDFs</button>
         </div>
         <div class="glabel">Output</div>
       </div>
@@ -119,6 +120,13 @@
           <button class="big danger" data-cmd="deletePages" data-icon="trash" title="Delete selected page(s)">Delete Page</button>
         </div>
         <div class="glabel">Delete</div>
+      </div>
+      <div class="group">
+        <div class="items">
+          <button class="big" data-cmd="extractPages" data-icon="extract" title="Save the selected page(s) as a new PDF">Extract Pages</button>
+          <button class="big" data-cmd="mergePdfs" data-icon="merge" title="Combine several PDFs into one">Merge PDFs</button>
+        </div>
+        <div class="glabel">Combine</div>
       </div>
       <div class="group hint-group">
         <div class="hint">Acts on the current page.<br />Ctrl+click thumbnails to pick several.<br /><span id="pageSelInfo"></span></div>
@@ -269,6 +277,20 @@
       </dl>
       <p class="about-credits">Built with Electron, PDF.js and pdf-lib.</p>
       <button class="primary" data-cmd="closeAbout">OK</button>
+    </div>
+  </div>
+  <div id="mergeDlg" class="dlg" hidden>
+    <div class="dlg-card" role="dialog" aria-labelledby="mergeTitle">
+      <button class="about-x" data-cmd="closeMerge" title="Close (Esc)">✕</button>
+      <h2 id="mergeTitle">Merge PDFs</h2>
+      <p class="dlg-hint">The files are joined in this order. Use the arrows to change it.</p>
+      <ol id="mergeList"></ol>
+      <div class="dlg-buttons">
+        <button data-cmd="mergeAdd">Add files…</button>
+        <span class="spacer"></span>
+        <button data-cmd="closeMerge">Cancel</button>
+        <button class="primary" data-cmd="mergeRun" id="mergeRun">Merge and save…</button>
+      </div>
     </div>
   </div>
   <div id="ctxMenu" class="menu" hidden></div>

@@ -1,7 +1,7 @@
 // PDFacil - renderer
 import * as pdfjsLib from './vendor/pdf.min.mjs';
 import {
-  importAnnotations, buildPdf, HIGHLIGHT_COLORS, newId, wrapLines, TEXT_PAD, LINE_FACTOR, TEXT_FONTS, fontOf,
+  importAnnotations, buildPdf, copyPagesToNew, mergePdfs, HIGHLIGHT_COLORS, newId, wrapLines, TEXT_PAD, LINE_FACTOR, TEXT_FONTS, fontOf,
 } from './pdfio.js';
 import { loadOutline, flatten, setInitialOpen } from './outline.js';
 
@@ -64,13 +64,15 @@ const ICONS = {
   x: '<path d="M6 6l12 12M18 6 6 18"/>',
   chevUp: '<path d="m6 15 6-6 6 6"/>',
   chevDown: '<path d="m6 9 6 6 6-6"/>',
+  extract: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5"/><path d="M14 3v6h6v3"/><rect x="14" y="14" width="7" height="7" rx="1"/><path d="M8 13h3M8 17h3"/>',
+  merge: '<rect x="3" y="3" width="8" height="10" rx="1"/><rect x="13" y="3" width="8" height="10" rx="1"/><path d="M7 13v3a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-3"/><path d="M12 18v3"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><path d="M12 7.5v.01" stroke-width="2.4"/>',
 };
 const svg = (name) =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${ICONS[name] || ''}</svg>`;
 $$('[data-icon]').forEach((b) => b.insertAdjacentHTML('afterbegin', svg(b.dataset.icon)));
 $$('#ribbon button[data-cmd]').forEach((b) => {
-  if (!['open', 'recentMenu', 'about'].includes(b.dataset.cmd)) b.dataset.needsDoc = '1';
+  if (!['open', 'recentMenu', 'about', 'mergePdfs'].includes(b.dataset.cmd)) b.dataset.needsDoc = '1';
 });
 $$('#ribbon button[data-tool]').forEach((b) => (b.dataset.needsDoc = '1'));
 
@@ -1780,6 +1782,8 @@ thumbsDiv.addEventListener('contextmenu', (e) => {
     { label: `Rotate ${what} right`, run: () => rotatePages(90) },
     '-',
     { label: `Delete ${what}`, key: 'Del', danger: true, run: () => deletePages() },
+    '-',
+    { label: `Extract ${what} as a new PDF…`, run: () => extractPages() },
   ]);
 });
 
@@ -1814,6 +1818,131 @@ function deletePages(list = targetPages()) {
   rebuildAfterStructure(Math.min(list[0], S.model.pages.length - 1));
   status(`Deleted ${list.length > 1 ? `${list.length} pages` : `page ${list[0] + 1}`}. Ctrl+Z brings it back.`, 5000);
 }
+
+// "1-3, 5" for 0-based indices [0,1,2,4]
+function pageRanges(list) {
+  const out = [];
+  for (let k = 0; k < list.length; k++) {
+    let j = k;
+    while (j + 1 < list.length && list[j + 1] === list[j] + 1) j++;
+    out.push(j > k ? `${list[k] + 1}-${list[j] + 1}` : `${list[k] + 1}`);
+    k = j;
+  }
+  return out.join(', ');
+}
+
+const baseName = (n) => (n || 'Document').replace(/\.pdf$/i, '');
+const besideCurrent = (name) => (S.path ? S.path.replace(/[^\\/]*$/, '') : '') + name;
+// The current document with all its unsaved edits, as PDF bytes.
+const currentBytes = () => buildPdf(S.baseBytes, S.model, S.author);
+
+async function extractPages(list = targetPages()) {
+  if (!guardEdit()) return;
+  commitEdits();
+  const ranges = pageRanges(list);
+  const label = list.length > 1 ? `pages ${ranges}` : `page ${ranges}`;
+  const p = await api.saveDialog(besideCurrent(`${baseName(S.name)} (${label}).pdf`));
+  if (!p) return;
+  try {
+    busy(`Extracting ${label}…`);
+    // buildPdf keeps pages in document order, so model index k is output page k.
+    const bytes = await copyPagesToNew(await currentBytes(), list);
+    await api.writeFile(p, bytes);
+    busy(null);
+    await openPath(p);
+    status(`Saved ${label} as ${p.split(/[\\/]/).pop()}`, 5000);
+  } catch (e) {
+    console.error(e);
+    api.error(`Could not extract the pages.\n\n${e?.message || e}`);
+  } finally {
+    busy(null);
+  }
+}
+
+// ---------------------------------------------------------------- merge
+// Items: { name, path } for files on disk, or { name, current: true } for the open document.
+let mergeItems = [];
+const mergeDlg = $('#mergeDlg');
+
+function renderMergeList() {
+  const ol = $('#mergeList');
+  ol.innerHTML = '';
+  mergeItems.forEach((it, k) => {
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="mname"></span>${it.current ? '<span class="mtag">open, with your edits</span>' : ''}
+      <button data-m="up" title="Move up">${svg('up')}</button>
+      <button data-m="down" title="Move down">${svg('down')}</button>
+      <button data-m="remove" title="Remove from the list">${svg('x')}</button>`;
+    li.querySelector('.mname').textContent = it.name;
+    li.querySelector('.mname').title = it.path || it.name;
+    li.querySelector('[data-m=up]').disabled = k === 0;
+    li.querySelector('[data-m=down]').disabled = k === mergeItems.length - 1;
+    li.dataset.k = k;
+    ol.appendChild(li);
+  });
+  $('#mergeRun').disabled = mergeItems.length < 2;
+}
+
+$('#mergeList').addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-m]');
+  if (!b || b.disabled) return;
+  const k = +b.closest('li').dataset.k;
+  if (b.dataset.m === 'remove') mergeItems.splice(k, 1);
+  else {
+    const j = b.dataset.m === 'up' ? k - 1 : k + 1;
+    [mergeItems[k], mergeItems[j]] = [mergeItems[j], mergeItems[k]];
+  }
+  renderMergeList();
+});
+
+async function mergeAdd() {
+  const list = await api.openDialog();
+  for (const p of list || []) mergeItems.push({ name: p.split(/[\\/]/).pop(), path: p });
+  renderMergeList();
+}
+
+async function openMerge() {
+  commitEdits();
+  mergeItems = S.pdf && !S.readOnly ? [{ name: S.name, current: true }] : [];
+  renderMergeList();
+  mergeDlg.hidden = false;
+  if (mergeItems.length === 0) await mergeAdd();
+  $('#mergeRun').focus();
+}
+
+const closeMerge = () => (mergeDlg.hidden = true);
+
+async function mergeRun() {
+  if (mergeItems.length < 2) return;
+  const first = mergeItems[0];
+  const suggested = first.path ? first.path.replace(/[^\\/]*$/, '') : besideCurrent('');
+  const p = await api.saveDialog(`${suggested}${baseName(first.name)} (merged).pdf`);
+  if (!p) return;
+  try {
+    const items = [];
+    for (let k = 0; k < mergeItems.length; k++) {
+      const it = mergeItems[k];
+      busy(`Reading ${it.name} (${k + 1} of ${mergeItems.length})…`);
+      items.push({ name: it.name, bytes: it.current ? await currentBytes() : await api.readBytes(it.path) });
+    }
+    busy('Merging…');
+    const bytes = await mergePdfs(items);
+    await api.writeFile(p, bytes);
+    busy(null);
+    closeMerge();
+    await openPath(p);
+    status(`Merged ${items.length} files into ${p.split(/[\\/]/).pop()}`, 5000);
+  } catch (e) {
+    console.error(e);
+    api.error(`Could not merge the files.\n\n${e?.message || e}`);
+  } finally {
+    busy(null);
+  }
+}
+
+mergeDlg.addEventListener('mousedown', (e) => {
+  if (e.target === mergeDlg) closeMerge();
+});
 
 function rebuildAfterStructure(focusPage) {
   buildPagesDOM();
@@ -2188,6 +2317,11 @@ const commands = {
   rotateLeft: () => rotatePages(-90),
   rotateRight: () => rotatePages(90),
   deletePages: () => deletePages(),
+  extractPages: () => extractPages(),
+  mergePdfs: openMerge,
+  mergeAdd,
+  mergeRun,
+  closeMerge,
   deleteAnnot: () => {
     if (S.sel) deleteAnnot();
     else status('Click a highlight, text box or comment first, then press Remove.');
@@ -2292,6 +2426,15 @@ setRibbonCollapsed(ribbonCollapsed);
 const isEditable = (el) => el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
 
 window.addEventListener('keydown', (e) => {
+  // The merge dialog is modal: only Escape, Tab and Enter (on its buttons) work while it is open.
+  if (!mergeDlg.hidden) {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeMerge();
+    }
+    if (!['Tab', 'Enter', ' '].includes(e.key)) e.preventDefault();
+    return;
+  }
   const ctrl = e.ctrlKey || e.metaKey;
   const k = e.key.toLowerCase();
   const inEdit = isEditable(document.activeElement);
