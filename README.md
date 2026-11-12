@@ -167,6 +167,7 @@ The tests in `test/` drive the app with [Playwright](https://playwright.dev/), f
 - `test/notes.cjs`: the notes;
 - `test/zotero.cjs`: the Zotero integration, against a stand-in for Zotero's web API (`test/zotero-mock.cjs`);
 - `test/rename-compat.cjs`: that annotations saved under the old name still open;
+- `test/ribbon-fit.cjs`: that every ribbon tab fits on an iPad in portrait and landscape;
 - `test/ios-web.cjs`: the iPad app's web part at iPad size, with touch, against a stand-in for the native plugin. The native plugin itself is only built and run in Xcode.
 
 

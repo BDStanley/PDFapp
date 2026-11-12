@@ -455,3 +455,28 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .gcell.selected .gcheck { background: var(--accent); border-color: var(--accent); }
 .gcell.selected .gcheck::after { content: '✓'; }
 .gband { position: absolute; border: 1px solid var(--accent); background: rgba(165, 44, 96, .12); pointer-events: none; z-index: 1; }
+
+/* Narrow windows (an iPad in portrait, a narrow Mac window): smaller ribbon buttons whose labels may wrap
+   onto two lines, narrower groups and fields, and the page-selection hint left out, so every tab fits. */
+@media (max-width: 1000px) {
+  .panel { padding: 4px 2px 0; }
+  .group { padding: 0 3px; }
+  .group .items { gap: 0; }
+  button.big { min-width: 54px; width: min-content; height: 64px; padding: 4px 2px 2px; font-size: 11.5px; line-height: 1.12; white-space: normal; text-align: center; gap: 3px; }
+  button.big svg { width: 23px; height: 23px; }
+  .panel.compact button.big { min-width: 50px; height: 60px; }
+  .glabel { font-size: 9.5px; letter-spacing: .05em; }
+  .hint-group { display: none; }
+  .stack { padding: 4px 2px 0; }
+  .goto input { width: 38px; }
+  select#textFont { width: 96px; }
+  select#textSize { width: 52px; }
+  .swatches { max-width: 64px; gap: 4px; padding: 8px 2px 0; }
+  .swatch { width: 20px; height: 20px; }
+  #txtSwatches, #hlSwatches { max-width: 52px; }
+}
+@media (max-width: 780px) {
+  button.big { min-width: 48px; font-size: 11px; }
+  .panel.compact button.big { min-width: 46px; }
+  select#textFont { width: 84px; }
+}
