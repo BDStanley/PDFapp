@@ -8,6 +8,7 @@ try {
 
 contextBridge.exposeInMainWorld('api', {
   username,
+  platform: process.platform,
   startupPath: () => ipcRenderer.invoke('startup-path'),
   version: () => ipcRenderer.invoke('app-version'),
   getRecent: () => ipcRenderer.invoke('get-recent'),

@@ -31,6 +31,25 @@ npm run dist      # builds the Windows app into dist/win-unpacked
 
 The finished app is the `dist/win-unpacked` folder; run `PDFacil.exe` inside it. To have `npm run dist` also copy the app to another folder, set the `PDFACIL_OUT` environment variable to that folder first. Close PDFacil before rebuilding, or Windows will keep the old files locked.
 
+## macOS (this fork)
+
+This fork adds a macOS build. The app is not signed with an Apple Developer ID, so macOS will warn the first time it is opened.
+
+**Download a build:** on GitHub, open *Actions* › *Build macOS app*, pick the latest run and download the `PDFacil-mac` artifact (a `.dmg` and a `.zip`; a universal app for Apple silicon and Intel). To start a build by hand, use *Run workflow* there.
+
+**Or build it on your Mac:** with [Node.js](https://nodejs.org/) 20 or newer,
+
+```
+npm install
+npm start           # run it without building
+npm run dist:mac    # builds dist/PDFacil-<version>-universal.dmg and .zip
+```
+
+**First launch:** drag PDFacil to Applications, then right-click it and choose *Open*. If macOS says it is damaged, run
+`xattr -dr com.apple.quarantine /Applications/PDFacil.app` in Terminal. To make it the default PDF viewer, select a PDF in Finder, *Get Info* › *Open with* › PDFacil › *Change All*.
+
+On the Mac, shortcuts use ⌘ in place of Ctrl, redo is ⌘⇧Z, ⌘-click picks several thumbnails, and ⌘⇧R hides or shows the ribbon.
+
 ## How it was made
 
 PDFacil was designed by Uri Simonsohn and written with Claude Opus 5.5 (Anthropic's AI model). 

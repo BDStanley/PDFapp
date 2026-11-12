@@ -14,6 +14,14 @@ const PDFJS_OPTS = {
 };
 
 const api = window.api;
+// On macOS shortcuts use Cmd, so labels say ⌘ instead of Ctrl.
+const IS_MAC = api.platform === 'darwin';
+const kb = (t) =>
+  IS_MAC ? t.replace(/Ctrl\+click/g, '⌘-click').replace(/Ctrl \+\)/g, '⌘+)').replace(/Ctrl \+ /g, '⌘ ').replace(/Ctrl\+F1/g, '⌘⇧R').replace(/Ctrl\+Y/g, '⌘⇧Z').replace(/Ctrl\+Shift\+/g, '⌘⇧').replace(/Ctrl\s?/g, '⌘').replace(/⌘\+/g, '⌘') : t;
+if (IS_MAC) {
+  document.querySelectorAll('[title]').forEach((el) => (el.title = kb(el.title)));
+  document.querySelectorAll('.hint').forEach((el) => (el.innerHTML = kb(el.innerHTML)));
+}
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const viewer = $('#viewer');
@@ -123,7 +131,7 @@ const findAnnot = (page, id) => S.model.pages[page]?.annots.find((a) => a.id ===
 // ---------------------------------------------------------------- ui helpers
 let statusTimer;
 function status(msg, ms = 3000) {
-  $('#statusMsg').textContent = msg;
+  $('#statusMsg').textContent = kb(msg);
   clearTimeout(statusTimer);
   if (ms) statusTimer = setTimeout(() => ($('#statusMsg').textContent = ''), ms);
 }
@@ -422,7 +430,7 @@ function renderTabs() {
     el.className = 'doctab' + (i === active ? ' active' : '') + (t.dirty ? ' dirty' : '');
     el.title = doc.path || doc.name;
     el.dataset.idx = i;
-    el.innerHTML = '<span class="tdot">●</span><span class="tname"></span><button class="tclose" title="Close (Ctrl+W)">✕</button>';
+    el.innerHTML = '<span class="tdot">●</span><span class="tname"></span><button class="tclose" title="' + kb('Close (Ctrl+W)') + '">✕</button>';
     el.querySelector('.tname').textContent = doc.name;
     tabList.append(el);
   });
@@ -1344,7 +1352,7 @@ pagesDiv.addEventListener('contextmenu', (e) => {
   if (sel && !sel.isCollapsed && sel.toString().trim()) {
     const text = sel.toString();
     items.push({ label: 'Highlight selection', run: () => highlightSelection() });
-    items.push({ label: 'Copy', key: 'Ctrl+C', run: () => navigator.clipboard.writeText(text) });
+    items.push({ label: 'Copy', key: kb('Ctrl+C'), run: () => navigator.clipboard.writeText(text) });
     items.push('-');
   }
   const annEl = e.target.closest('.ann-text, .ann-note');
@@ -1739,7 +1747,7 @@ thumbsDiv.addEventListener('click', (e) => {
   const t = e.target.closest('.thumb');
   if (!t) return;
   const i = +t.dataset.idx;
-  if (e.ctrlKey) {
+  if (e.ctrlKey || e.metaKey) {
     if (S.selPages.has(i) && S.selPages.size > 1) S.selPages.delete(i);
     else S.selPages.add(i);
     updateThumbClasses(false);
@@ -2245,7 +2253,7 @@ function setRibbonCollapsed(v) {
   setPeek(false);
   const b = $('#ribbonToggle');
   b.innerHTML = svg(v ? 'chevDown' : 'chevUp');
-  b.title = v ? 'Show the ribbon (Ctrl+F1)' : 'Hide the ribbon (Ctrl+F1)';
+  b.title = kb(v ? 'Show the ribbon (Ctrl+F1)' : 'Hide the ribbon (Ctrl+F1)');
   try {
     localStorage.setItem('pdfacil.ribbonCollapsed', v ? '1' : '0');
   } catch {}
@@ -2288,7 +2296,7 @@ window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
   const inEdit = isEditable(document.activeElement);
 
-  if (e.key === 'F1' && ctrl) {
+  if ((e.key === 'F1' && ctrl) || (IS_MAC && e.metaKey && e.shiftKey && k === 'r')) {
     e.preventDefault();
     setRibbonCollapsed(!ribbonCollapsed);
     return;

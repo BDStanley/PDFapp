@@ -7,7 +7,8 @@
     "postinstall": "node scripts/copy-vendor.js",
     "start": "electron .",
     "dist": "electron-builder --win dir --x64 && node scripts/copy-exe.js",
-    "test": "node test/smoke.cjs"
+    "test": "node test/smoke.cjs",
+    "dist:mac": "electron-builder --mac --universal"
   },
   "author": "Uri Simonsohn",
   "license": "CC-BY-NC-4.0",
@@ -54,6 +55,28 @@
     },
     "electronLanguages": [
       "en-US"
-    ]
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "icon": "build/icon-mac.png",
+      "category": "public.app-category.productivity",
+      "identity": "-"
+    },
+    "dmg": {
+      "title": "PDFacil"
+    }
   }
 }

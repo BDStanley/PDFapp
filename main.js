@@ -2,6 +2,9 @@
 const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { pathToFileURL } = require('url');
+
+const isMac = process.platform === 'darwin';
 
 let win = null;
 let isDirty = false;
@@ -42,6 +45,9 @@ function readRecent() {
 }
 
 function addRecent(p) {
+  try {
+    app.addRecentDocument(p);
+  } catch {}
   const key = p.toLowerCase();
   writeRecent([{ path: p, time: Date.now() }, ...readRecentRaw().filter((x) => x.path.toLowerCase() !== key)]);
 }
@@ -71,7 +77,14 @@ function createWindow() {
       sandbox: false,
     },
   });
-  Menu.setApplicationMenu(null);
+  // macOS takes Cmd+Q, Cmd+H and copy/paste in text fields from the menu bar, so it keeps a minimal menu.
+  if (isMac) {
+    Menu.setApplicationMenu(
+      Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }]),
+    );
+  } else {
+    Menu.setApplicationMenu(null);
+  }
   win.webContents.setVisualZoomLevelLimits(1, 1);
   win.loadFile(path.join(__dirname, 'src', 'index.html'));
   win.once('ready-to-show', () => {
@@ -103,7 +116,25 @@ function createWindow() {
       win.close();
     }
   });
+  win.on('closed', () => {
+    win = null;
+    forceClose = false;
+    isDirty = false;
+  });
 }
+
+// macOS: Finder sends files through 'open-file' rather than argv, possibly before the app is ready.
+app.on('open-file', (e, p) => {
+  e.preventDefault();
+  if (win) {
+    if (win.isMinimized()) win.restore();
+    win.focus();
+    win.webContents.send('open-path', p);
+  } else {
+    pendingOpenPath = p;
+    if (app.isReady()) createWindow();
+  }
+});
 
 // Single instance: opening a second PDF from Explorer reuses this window.
 if (!app.requestSingleInstanceLock()) {
@@ -119,7 +150,12 @@ if (!app.requestSingleInstanceLock()) {
   });
   pendingOpenPath = pdfArg(process.argv);
   app.whenReady().then(createWindow);
-  app.on('window-all-closed', () => app.quit());
+  app.on('window-all-closed', () => {
+    if (!isMac) app.quit();
+  });
+  app.on('activate', () => {
+    if (!win) createWindow();
+  });
 }
 
 // ---------- IPC ----------
@@ -210,7 +246,7 @@ ipcMain.handle('print-pages', async (_e, pages) => {
     .pg:last-child { page-break-after: auto; break-after: auto; }
     img { max-width: 100%; max-height: 100%; object-fit: contain; }
   </style></head><body>${imgs
-    .map((x) => `<div class="pg"><img src="file:///${x.f.replace(/\\/g, '/')}"></div>`)
+    .map((x) => `<div class="pg"><img src="${pathToFileURL(x.f).href}"></div>`)
     .join('')}</body></html>`;
   const htmlPath = path.join(dir, 'print.html');
   await fs.promises.writeFile(htmlPath, html);
