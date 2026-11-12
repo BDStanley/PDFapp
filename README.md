@@ -113,6 +113,8 @@ PDFapp runs on the iPad too, with the same features. The app is the same code as
   - in the Page Grid, tap the circles to pick pages.
 
   With a keyboard attached, the ⌘ shortcuts work as on the Mac.
+- **Full screen:** the corner button in the top bar, or *View › Full Screen*, hides every bar and panel, and the iPad's status bar, so the pages fill the screen. The button in the top-right corner, Escape or ⌘⇧F brings them back. (It works on the Mac too, inside the window.)
+- **On the iPhone** the same app has a compact layout: the ribbon is one strip of small buttons that scrolls sideways, thumbnails start hidden, and the outline opens over the page. The layout also applies to a narrow iPad window (Slide Over).
 - **Printing** uses the iPad's own print sheet. *Copy Notes* uses the iPad's clipboard.
 - **Zotero** works as on the Mac. The key is kept in the iPad's keychain, and PDFs come from Zotero's own file storage (not WebDAV or linked files, which are on your computer).
 

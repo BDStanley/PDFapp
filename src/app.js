@@ -73,6 +73,8 @@ const ICONS = {
   down: '<path d="m6 9 6 6 6-6"/>',
   x: '<path d="M6 6l12 12M18 6 6 18"/>',
   chevUp: '<path d="m6 15 6-6 6 6"/>',
+  expand: '<path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/>',
+  shrink: '<path d="M9 4v5H4"/><path d="M15 4v5h5"/><path d="M9 20v-5H4"/><path d="M15 20v-5h5"/>',
   chevDown: '<path d="m6 9 6 6 6-6"/>',
   extract: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5"/><path d="M14 3v6h6v3"/><rect x="14" y="14" width="7" height="7" rx="1"/><path d="M8 13h3M8 17h3"/>',
   merge: '<rect x="3" y="3" width="8" height="10" rx="1"/><rect x="13" y="3" width="8" height="10" rx="1"/><path d="M7 13v3a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-3"/><path d="M12 18v3"/>',
@@ -443,6 +445,7 @@ function afterDocSwitch() {
   $('#pageTotal').textContent = n;
   $('#gotoTotal').textContent = `/ ${n}`;
   $('#pageInput').value = n ? S.current + 1 : '';
+  $('#fsPage').textContent = n ? `${S.current + 1} / ${n}` : '';
   $('#gotoInput').value = n ? S.current + 1 : '';
   updateZoomUI();
   updateThumbClasses(false);
@@ -1571,6 +1574,7 @@ function updateCurrent() {
     S.current = cur;
     if (document.activeElement !== $('#pageInput')) $('#pageInput').value = cur + 1;
     if (document.activeElement !== $('#gotoInput')) $('#gotoInput').value = cur + 1;
+    $('#fsPage').textContent = `${cur + 1} / ${S.pe.length}`;
     if (S.selPages.size <= 1) S.selPages = new Set([cur]);
     updateThumbClasses(true);
   }
@@ -1654,8 +1658,10 @@ function zoomStep(dir, anchor) {
 
 function applyFit() {
   if (!S.pe.length || !S.fitMode) return;
-  const availW = viewer.clientWidth - 48;
-  const availH = viewer.clientHeight - 32;
+  // The room left by the padding around the pages (less on a phone and in full screen), and a little more.
+  const pad = getComputedStyle(pagesDiv);
+  const availW = viewer.clientWidth - parseFloat(pad.paddingLeft) - parseFloat(pad.paddingRight) - 8;
+  const availH = viewer.clientHeight - parseFloat(pad.paddingTop) - 16;
   let s;
   if (S.fitMode === 'page') {
     const vp1 = viewportFor(S.current, 1);
@@ -3196,6 +3202,7 @@ const commands = {
   findClose: closeSearch,
   toggleThumbs: () => setPanel('thumbs', sidebar.classList.contains('hidden')),
   toggleOutline: () => setPanel('outline', outlinePanel.classList.contains('hidden')),
+  toggleFullscreen: () => setFullScreen(!fullScreen),
 };
 
 document.addEventListener('click', (e) => {
@@ -3266,6 +3273,25 @@ $('#ribbon').addEventListener('click', (e) => {
 });
 setRibbonCollapsed(ribbonCollapsed);
 
+// ---------------------------------------------------------------- full screen
+// Only the pages: the bars, side panels and status bar are hidden (and, on the iPad and iPhone, the system's
+// status bar and home indicator). The button in the corner, Escape or Ctrl+Shift+F brings them back.
+let fullScreen = false;
+function setFullScreen(on) {
+  if (on === fullScreen || (on && !S.pdf)) return;
+  fullScreen = on;
+  hideMenus();
+  setPeek(false);
+  document.body.classList.toggle('fullscreen', on);
+  $$('[data-cmd=toggleFullscreen]').forEach((b) => b.classList.toggle('active', on));
+  api.setFullScreen?.(on);
+  // The document area changed size; iOS hides its status bar a moment later, so fit again then.
+  if (S.fitMode) {
+    setTimeout(applyFit, 0);
+    setTimeout(applyFit, 400);
+  }
+}
+
 const isEditable = (el) => el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
 
 window.addEventListener('keydown', (e) => {
@@ -3282,6 +3308,11 @@ window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
   const inEdit = isEditable(document.activeElement);
 
+  if (ctrl && e.shiftKey && k === 'f' && S.pdf) {
+    e.preventDefault();
+    setFullScreen(!fullScreen);
+    return;
+  }
   if (ctrl && e.shiftKey && k === 'g' && S.pdf) {
     e.preventDefault();
     toggleGrid();
@@ -3375,6 +3406,8 @@ window.addEventListener('keydown', (e) => {
       select(null, null);
     } else if (S.tool !== 'select') {
       setTool('select');
+    } else if (fullScreen) {
+      setFullScreen(false);
     }
     return;
   }
@@ -3454,6 +3487,8 @@ for (const which of ['thumbs', 'outline']) {
     v = localStorage.getItem(`pdfapp.show.${which}`);
   } catch {}
   if (v !== null) setPanel(which, v === '1');
+  // On a phone the thumbnails would take half the screen, so they start hidden there.
+  else if (which === 'thumbs' && IS_TOUCH && matchMedia('(max-width: 600px), (max-height: 500px)').matches) setPanel('thumbs', false);
 }
 
 document.body.classList.add('nodoc', 'tool-select');
@@ -3464,4 +3499,4 @@ refreshRecent();
 api.startupPath().then((p) => p && openPath(p));
 
 // test hook (used by automated tests only)
-window.__pdfapp = { S, IS_TOUCH, copyText, toggleGrid, isGridOpen: () => gridOpen, collectNotes, openZoteroAttachment, openZoteroBrowser, tabs, getActive: () => active, activate, closeTab, openPath, save, setTool, highlightSelection, deletePages, rotatePages, undo, redo, runSearch, setScale, buildPdf };
+window.__pdfapp = { S, IS_TOUCH, setFullScreen, isFullScreen: () => fullScreen, copyText, toggleGrid, isGridOpen: () => gridOpen, collectNotes, openZoteroAttachment, openZoteroBrowser, tabs, getActive: () => active, activate, closeTab, openPath, save, setTool, highlightSelection, deletePages, rotatePages, undo, redo, runSearch, setScale, buildPdf };

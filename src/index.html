@@ -24,6 +24,7 @@
       <button class="tab" data-tab="view">View</button>
     </nav>
     <button id="ribbonToggle" title="Hide the ribbon (Ctrl+F1)"></button>
+    <button id="fsToggle" data-cmd="toggleFullscreen" data-icon="expand" title="Full screen: only the pages (Ctrl+Shift+F)"></button>
     <div class="brand">PDF<span>app</span></div>
   </header>
 
@@ -201,6 +202,7 @@
           <button class="big toggle" data-cmd="toggleOutline" data-icon="outline" title="Show or hide the outline (click a heading to jump there)">Outline</button>
           <button class="big toggle active" data-cmd="toggleThumbs" data-icon="thumbs" title="Show or hide page thumbnails">Thumbnails</button>
           <button class="big toggle" data-cmd="toggleGrid" data-icon="grid" title="Show every page as a thumbnail, to pick pages to extract, rotate or delete (Ctrl+Shift+G)">Page Grid</button>
+          <button class="big" data-cmd="toggleFullscreen" data-icon="expand" title="Only the pages, with every bar and panel hidden (Ctrl+Shift+F; Esc to leave)">Full Screen</button>
         </div>
         <div class="glabel">Show</div>
       </div>
@@ -273,6 +275,10 @@
       <div id="dropOverlay" hidden><div>Drop PDF to open</div></div>
     </div>
   </main>
+
+  <!-- Full screen: the way back, and the page number -->
+  <button id="fsExit" data-cmd="toggleFullscreen" data-icon="shrink" title="Leave full screen (Esc)"></button>
+  <div id="fsPage"></div>
 
   <!-- Status bar -->
   <footer id="statusbar">

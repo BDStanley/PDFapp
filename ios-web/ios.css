@@ -32,3 +32,61 @@ html.ios .textLayer, html.ios .textLayer span { -webkit-user-select: text; user-
 #selBubble[hidden] { display: none; }
 #selBubble button { background: none; border: 0; color: #fff; font: inherit; font-size: 14px; padding: 9px 14px; border-radius: 7px; }
 #selBubble button:active { background: rgba(255,255,255,.18); }
+
+/* Notches and rounded corners in landscape: the bars keep clear of them. */
+html.ios #tabrow, html.ios #ribbon, html.ios #tabbar { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+html.ios #statusbar { padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); }
+html.ios #main { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+html.ios body.fullscreen #main { padding: 0; }
+
+/* Full screen: a button in the top bar, beside the ribbon's. */
+html.ios #fsToggle { display: grid; place-items: center; align-self: center; background: none; border: 0; color: #fff; width: 34px; height: 30px; border-radius: 4px; }
+html.ios #fsToggle svg { width: 18px; height: 18px; }
+html.ios body.nodoc #fsToggle { opacity: .45; }
+
+/* ---------- The iPhone (and a narrow iPad window) ----------
+   One row of tabs, the ribbon as a single strip of small buttons that scrolls sideways, no group labels,
+   thumbnails off at first and narrower, the outline over the page, and less padding around the pages. */
+@media (max-width: 600px), (max-height: 500px) {
+  html.ios #tabrow .brand { display: none; }
+  html.ios .qa { padding: 0 2px; gap: 0; }
+  html.ios .qa-btn { width: 30px; height: 30px; }
+  html.ios #tabs { flex: 1; min-width: 0; padding-left: 2px; gap: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+  html.ios #tabs::-webkit-scrollbar { display: none; }
+  html.ios #tabrow .tab { flex: none; padding: 8px 8px 9px; font-size: 13px; }
+  html.ios #ribbonToggle { margin-left: 0; width: 32px; flex: none; }
+  html.ios #fsToggle { width: 32px; flex: none; }
+
+  html.ios .panel.active { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; min-height: 0; padding: 2px 2px 1px; }
+  html.ios .panel::-webkit-scrollbar { display: none; }
+  html.ios .group, html.ios .panel.compact .group { flex: none; padding: 0 3px; margin: 1px 0; }
+  html.ios .glabel { display: none; }
+  html.ios button.big, html.ios .panel.compact button.big {
+    min-width: 46px; width: auto; height: 48px; padding: 4px 4px 2px; font-size: 10.5px; line-height: 1.1; white-space: nowrap; gap: 2px;
+  }
+  html.ios button.big svg { width: 21px; height: 21px; }
+  html.ios .stack { padding: 2px 2px 0; gap: 2px; }
+  html.ios .small-label { font-size: 10px; }
+  html.ios .swatches, html.ios #hlSwatches, html.ios #txtSwatches { padding-top: 3px; gap: 3px; max-width: 46px; }
+  html.ios .swatch { width: 19px; height: 19px; }
+  html.ios body.ribbon-collapsed.ribbon-peek #ribbon { top: calc(38px + env(safe-area-inset-top)); }
+
+  html.ios #main { position: relative; }
+  html.ios #sidebar { width: 104px; }
+  html.ios #thumbs { gap: 8px; padding: 8px 0 24px; }
+  html.ios #outlinePanel { position: absolute; top: 0; bottom: 0; left: env(safe-area-inset-left); z-index: 30; width: min(300px, 86vw); box-shadow: 4px 0 18px rgba(0,0,0,.2); }
+  html.ios #pages { padding: 8px 4px 32px; gap: 8px; }
+  html.ios .doctab { min-width: 90px; max-width: 180px; }
+
+  html.ios #zoomSlider { display: none; }
+  html.ios #statusbar .center { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 0 6px; }
+
+  /* The start screen: one column, the button above the recent files. */
+  html.ios #welcome { padding: 10px; }
+  html.ios .welcome-wrap { flex-direction: column; gap: 10px; }
+  html.ios #dropBox { width: auto; flex: none; padding: 14px; gap: 8px; }
+  html.ios #dropBox .drop-icon, html.ios #dropBox .drop-title, html.ios #dropBox .drop-or { display: none; }
+  html.ios .drop-logo { width: 48px; height: 48px; margin-bottom: 0; }
+  html.ios .drop-hint { margin-top: 0; }
+  html.ios #recentBox { flex: 1; min-height: 0; }
+}

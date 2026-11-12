@@ -50,6 +50,8 @@
       await ready;
       return info.version;
     },
+    // Full screen: hides the system's status bar and home indicator too (older builds of the app lack the call).
+    setFullScreen: (on) => native('setFullScreen', { on: !!on }).catch(() => {}),
 
     // ---- files
     getRecent: async () => (await native('recent')).items || [],

@@ -31,6 +31,7 @@ public class PDFappPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDelegate
         CAPPluginMethod(name: "copyText", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "print", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "backgroundDone", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setFullScreen", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "zoteroConfig", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "zoteroConnect", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "zoteroDisconnect", returnType: CAPPluginReturnPromise),
@@ -77,6 +78,15 @@ public class PDFappPlugin: CAPPlugin, CAPBridgedPlugin, UIDocumentPickerDelegate
     @objc func backgroundDone(_ call: CAPPluginCall) {
         DispatchQueue.main.async { self.endBackgroundTask() }
         call.resolve()
+    }
+
+    // Full screen in the page: hide the status bar and the home indicator as well.
+    @objc func setFullScreen(_ call: CAPPluginCall) {
+        let on = call.getBool("on") ?? false
+        DispatchQueue.main.async {
+            (self.bridge?.viewController as? MainViewController)?.setFullScreen(on)
+            call.resolve()
+        }
     }
 
     @objc func info(_ call: CAPPluginCall) {

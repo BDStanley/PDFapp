@@ -247,6 +247,26 @@ body.tool-highlight .textLayer ::selection { background: rgba(255, 220, 0, .45);
 #zoomSlider { width: 130px; accent-color: var(--brand); }
 #zoomLabel { min-width: 42px; text-align: right; }
 
+/* Full screen: only the pages, with a button back in the corner and the page number at the foot. */
+#fsToggle { display: none; }
+#fsExit, #fsPage { display: none; }
+body.fullscreen #tabrow, body.fullscreen #ribbon, body.fullscreen #tabbar, body.fullscreen #statusbar,
+body.fullscreen #sidebar, body.fullscreen #outlinePanel { display: none !important; }
+body.fullscreen #pages {
+  padding: max(4px, env(safe-area-inset-top)) env(safe-area-inset-right) max(48px, env(safe-area-inset-bottom)) env(safe-area-inset-left); gap: 8px;
+}
+body.fullscreen #fsExit {
+  display: grid; place-items: center; position: fixed; z-index: 950; width: 40px; height: 40px; border: 0; border-radius: 50%; cursor: pointer;
+  top: calc(env(safe-area-inset-top) + 10px); right: calc(env(safe-area-inset-right) + 12px);
+  background: rgba(20, 20, 20, .55); color: #fff; opacity: .7; transition: opacity .2s;
+}
+body.fullscreen #fsExit:hover, body.fullscreen #fsExit:active { opacity: 1; }
+body.fullscreen #fsExit svg { width: 20px; height: 20px; }
+body.fullscreen #fsPage:not(:empty) {
+  display: block; position: fixed; z-index: 950; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom) + 10px);
+  padding: 3px 11px; border-radius: 12px; background: rgba(20, 20, 20, .55); color: #fff; font-size: 12.5px; pointer-events: none;
+}
+
 #busy { position: fixed; inset: 0; background: rgba(255,255,255,.6); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--text); }
 #busy[hidden] { display: none; }
 .spinner { width: 34px; height: 34px; border: 3px solid var(--rule-soft); border-top-color: var(--brand); border-radius: 50%; animation: spin .8s linear infinite; }
@@ -335,11 +355,11 @@ body.nodoc #sidebar, body.nodoc #outlinePanel { display: none; }
   #recentTable :is(th, td):nth-child(4) { display: none; }
 }
 @container (max-width: 480px) {
-  #recentTable col.c-dir { width: 0; }
+  #recentTable col.c-dir { display: none; }
   #recentTable :is(th, td):nth-child(2) { display: none; }
 }
 @container (max-width: 340px) {
-  #recentTable col.c-n { width: 0; }
+  #recentTable col.c-n { display: none; }
   #recentTable :is(th, td):nth-child(1) { display: none; }
 }
 /* The drop box also gets slimmer on narrow windows. */
