@@ -49,7 +49,7 @@ if [ -z "$FOUND" ]; then
   exit 1
 fi
 DEVICES=$(printf '%s\n' "$FOUND" | cut -f1 | tr '\n' ' ' | sed 's/ $//')
-DEVICE_PDFappS=$(printf '%s\n' "$FOUND" | cut -f2 | paste -sd ',' - | sed 's/,/, /g')
+DEVICE_NAMES=$(printf '%s\n' "$FOUND" | cut -f2 | paste -sd ',' - | sed 's/,/, /g')
 
 mkdir -p "$(dirname "$CONF")"
 cat >"$CONF" <<EOF
