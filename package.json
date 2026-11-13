@@ -11,7 +11,8 @@
     "dist:mac": "electron-builder --mac --universal --publish never",
     "ios:sync": "node scripts/build-web.js && npx cap sync ios",
     "ios:open": "node scripts/build-web.js && npx cap sync ios && npx cap open ios",
-    "ios:ipa": "bash scripts/build-ipa.sh"
+    "ios:ipa": "bash scripts/build-ipa.sh",
+    "update": "bash scripts/update.sh"
   },
   "author": "Uri Simonsohn",
   "license": "CC-BY-NC-4.0",
