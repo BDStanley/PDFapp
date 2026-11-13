@@ -35,7 +35,7 @@ JSON=$(mktemp)
 xcrun devicectl list devices --json-output "$JSON" >/dev/null
 DEVICE=$(node -e '
   const d = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).result.devices || [];
-  const ipads = d.filter((x) => /ipad/i.test(x.hardwareProperties?.deviceType || x.deviceProperties?.name || ""));
+  const ipads = d.filter((x) => x.hardwareProperties?.reality !== "simulated" && /ipad/i.test(x.hardwareProperties?.deviceType || x.deviceProperties?.name || ""));
   const pick = ipads.find((x) => x.connectionProperties?.pairingState === "paired") || ipads[0];
   if (pick) console.log(pick.identifier + "\t" + (pick.deviceProperties?.name || "iPad"));
 ' "$JSON")
