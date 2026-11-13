@@ -1,5 +1,5 @@
 #!/bin/bash
-# Renews PDFapp on the iPad: fetches the latest version, builds it signed with your Apple ID, and installs it
+# Renews PDFapp on the iPad and the iPhone: fetches the latest version, builds it signed with your Apple ID, and installs it
 # over Wi-Fi (or the cable), so the 7-day limit of a free Apple ID never runs out.
 # Run by the schedule that scripts/ipad-renew-setup.sh sets up; can also be run by hand:  bash scripts/ipad-renew.sh
 # Settings (your signing team, the app's bundle identifier and the iPad) are in ~/.config/pdfapp/ipad.conf.
@@ -11,19 +11,20 @@ LOG="$HOME/Library/Logs/PDFapp-renew.log"
 mkdir -p "$(dirname "$LOG")"
 exec >>"$LOG" 2>&1
 echo
-echo "=== $(date '+%Y-%m-%d %H:%M:%S') renewing PDFapp on the iPad"
+echo "=== $(date '+%Y-%m-%d %H:%M:%S') renewing PDFapp"
 
 notify() { osascript -e "display notification \"$2\" with title \"PDFapp\" subtitle \"$1\"" >/dev/null 2>&1 || true; }
 fail() {
   echo "FAILED: $1"
-  notify "The iPad app was not renewed" "$1 See ~/Library/Logs/PDFapp-renew.log."
+  notify "PDFapp was not renewed" "$1 See ~/Library/Logs/PDFapp-renew.log."
   exit 1
 }
 
 [ -f "$CONF" ] || fail "Run scripts/ipad-renew-setup.sh first."
 # shellcheck source=/dev/null
 source "$CONF"
-[ -n "${TEAM:-}" ] && [ -n "${BUNDLE:-}" ] && [ -n "${DEVICE:-}" ] && [ -n "${REPO:-}" ] || fail "The settings in $CONF are incomplete. Run scripts/ipad-renew-setup.sh again."
+DEVICES="${DEVICES:-${DEVICE:-}}" # settings written before the iPhone was added name one DEVICE
+[ -n "${TEAM:-}" ] && [ -n "${BUNDLE:-}" ] && [ -n "$DEVICES" ] && [ -n "${REPO:-}" ] || fail "The settings in $CONF are incomplete. Run scripts/ipad-renew-setup.sh again."
 cd "$REPO" || fail "The PDFapp folder $REPO was not found."
 
 # The latest version. If the team you chose in Xcode, or npm's lock-file edits, are in the way of an update,
@@ -45,10 +46,17 @@ xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Debug \
 APP="$BUILD/Build/Products/Debug-iphoneos/App.app"
 [ -d "$APP" ] || fail "The build failed (signing, or a code error)."
 
-# Install on the iPad: over Wi-Fi when it is on the same network as the Mac, or by cable.
-if ! xcrun devicectl device install app --device "$DEVICE" "$APP"; then
-  fail "The iPad could not be reached. Is it on the same Wi-Fi as the Mac, and unlocked?"
-fi
+# Install on each device: over Wi-Fi when it is on the same network as the Mac, or by cable. One build serves
+# both, since the app is universal.
+OK=0; MISSED=0
+for D in $DEVICES; do
+  if xcrun devicectl device install app --device "$D" "$APP"; then OK=$((OK + 1)); else MISSED=$((MISSED + 1)); echo "Could not reach device $D."; fi
+done
+[ "$OK" -gt 0 ] || fail "No device could be reached. Are they on the same Wi-Fi as the Mac, and unlocked?"
 
-echo "Renewed: PDFapp $(defaults read "$APP/Info.plist" CFBundleShortVersionString 2>/dev/null) is on the iPad until $(date -v+7d '+%e %B')."
-notify "Renewed on the iPad" "PDFapp is good for another 7 days."
+echo "Renewed on $OK device(s): PDFapp $(defaults read "$APP/Info.plist" CFBundleShortVersionString 2>/dev/null) is good until $(date -v+7d '+%e %B')."
+if [ "$MISSED" -gt 0 ]; then
+  notify "Renewed on $OK of $((OK + MISSED)) devices" "One could not be reached; it runs until its last renewal's 7 days are up. See the log."
+else
+  notify "Renewed" "PDFapp is good for another 7 days."
+fi
