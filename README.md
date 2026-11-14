@@ -13,6 +13,7 @@ PDFapp is based on Uri Simonsohn's [PDFacil](https://github.com/urisohn/PDFacil)
 - **Zotero integration**: open PDFs from your Zotero library, with highlights, comments and text boxes saved as Zotero annotations that sync to Zotero on every device;
 - **a new name, icon and look**: the type (Jost) and colours of benstanley.eu.
 
+**Version:** shown in the About box (File tab › About, or F1); what changed in each version is in [CHANGELOG.md](CHANGELOG.md).
 
 ## What it does
 
