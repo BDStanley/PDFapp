@@ -2,6 +2,9 @@
 
 PDFapp's versions, newest first. The version is shown in the About box (File tab › About, or F1) on the Mac and on the iPad and iPhone. With every change: raise the version (the last number for a fix, the middle one for a new feature or a visible change) in `package.json` and the Xcode project, and add an entry here (see CLAUDE.md).
 
+## 1.5.1 — 14 November 2026
+- The README clones the app into `~/Apps/PDF reader`, its folder name on the Mac from 14 November 2026.
+
 ## 1.5.0 — 13 November 2026
 - The weekly renewal renews the iPhone as well as the iPad, and the set-up never picks one of Xcode's simulators as the device to renew.
 - Your signing team is kept out of the Xcode project (in `ios/signing.xcconfig`), so updating never fails with "Your local changes would be overwritten"; `npm run update` updates and opens Xcode in one go.

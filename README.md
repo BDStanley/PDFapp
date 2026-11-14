@@ -77,8 +77,8 @@ The app is not signed with an Apple Developer ID, so macOS warns you the first t
 **Or build it yourself.** You need [Node.js](https://nodejs.org/) 20 or newer:
 
 ```
-git clone https://github.com/BDStanley/PDFapp.git
-cd PDFapp
+git clone https://github.com/BDStanley/PDFapp.git "PDF reader"
+cd "PDF reader"
 npm install         # installs dependencies and copies the PDF libraries into src/vendor
 npm start           # runs the app without building it
 npm run dist:mac    # builds dist/PDFapp-<version>-universal.dmg and .zip
@@ -165,8 +165,8 @@ Each renewal ends with a Mac notification saying whether it worked, and the deta
 To build PDFapp for Windows, you need [Node.js](https://nodejs.org/) 20 or newer:
 
 ```
-git clone https://github.com/BDStanley/PDFapp.git
-cd PDFapp
+git clone https://github.com/BDStanley/PDFapp.git "PDF reader"
+cd "PDF reader"
 npm install
 npm run dist        # builds the Windows app into dist/win-unpacked
 ```
