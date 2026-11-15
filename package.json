@@ -1,6 +1,6 @@
 {
   "name": "pdfapp",
-  "version": "1.5.4",
+  "version": "1.5.5",
   "description": "PDFapp - a PDF viewer and editor for researchers",
   "main": "main.js",
   "scripts": {

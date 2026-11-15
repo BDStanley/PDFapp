@@ -1,7 +1,8 @@
 #!/bin/bash
-# Renews PDFapp on the iPad and the iPhone: fetches the latest version, builds it signed with your Apple ID, and installs it
-# over Wi-Fi (or the cable), so the 7-day limit of a free Apple ID never runs out.
-# Run by the schedule that scripts/ipad-renew-setup.sh sets up; can also be run by hand:  bash scripts/ipad-renew.sh
+# Installs the latest PDFapp on the iPad and the iPhone: fetches it, builds it signed with your Apple Developer team
+# (an install lasts a year), and installs it over Wi-Fi (or the cable).
+# Run by Updater, which sets RUN_BY_UPDATER and sends its own notification, so this script sends none then.
+# Can also be run by hand:  bash scripts/ipad-renew.sh   (or by ipad-renew-setup.sh's schedule, if switched on).
 # Settings (your signing team, the app's bundle identifier and the iPad) are in ~/.config/pdfapp/ipad.conf.
 # Log: ~/Library/Logs/PDFapp-renew.log
 set -uo pipefail
@@ -13,10 +14,13 @@ exec >>"$LOG" 2>&1
 echo
 echo "=== $(date '+%Y-%m-%d %H:%M:%S') renewing PDFapp"
 
-notify() { osascript -e "display notification \"$2\" with title \"PDFapp\" subtitle \"$1\"" >/dev/null 2>&1 || true; }
+notify() {
+  [ -n "${RUN_BY_UPDATER:-}" ] && return 0      # Updater says how it went itself
+  osascript -e "display notification \"$2\" with title \"PDFapp\" subtitle \"$1\"" >/dev/null 2>&1 || true
+}
 fail() {
   echo "FAILED: $1"
-  notify "PDFapp was not renewed" "$1 See ~/Library/Logs/PDFapp-renew.log."
+  notify "PDFapp was not installed" "$1 See ~/Library/Logs/PDFapp-renew.log."
   exit 1
 }
 
@@ -56,9 +60,13 @@ for D in $DEVICES; do
 done
 [ "$OK" -gt 0 ] || fail "No device could be reached. Are they on the same Wi-Fi as the Mac, and unlocked?"
 
-echo "Renewed on $OK device(s): PDFapp $(defaults read "$APP/Info.plist" CFBundleShortVersionString 2>/dev/null) is good until $(date -v+7d '+%e %B')."
+# How long this install lasts: the signing profile built into the app says.
+VERSION=$(defaults read "$APP/Info.plist" CFBundleShortVersionString 2>/dev/null)
+UNTIL=$(/usr/bin/openssl smime -inform der -verify -noverify -in "$APP/embedded.mobileprovision" 2>/dev/null | plutil -extract ExpirationDate raw -o - - 2>/dev/null)
+UNTIL=$(date -j -u -f '%Y-%m-%dT%H:%M:%SZ' "$UNTIL" '+%-d %B %Y' 2>/dev/null)
+echo "Installed on $OK device(s): PDFapp $VERSION${UNTIL:+, signed until $UNTIL}."
 if [ "$MISSED" -gt 0 ]; then
-  notify "Renewed on $OK of $((OK + MISSED)) devices" "One could not be reached; it runs until its last renewal's 7 days are up. See the log."
+  notify "Installed on $OK of $((OK + MISSED)) devices" "One could not be reached and keeps the version it has. See the log."
 else
-  notify "Renewed" "PDFapp is good for another 7 days."
+  notify "Installed" "PDFapp $VERSION is installed${UNTIL:+ and signed until $UNTIL}."
 fi
