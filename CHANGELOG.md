@@ -2,6 +2,9 @@
 
 PDFapp's versions, newest first. The version is shown in the About box (File tab › About, or F1) on the Mac and on the iPad and iPhone. With every change: raise the version (the last number for a fix, the middle one for a new feature or a visible change) in `package.json` and the Xcode project, and add an entry here (see CLAUDE.md).
 
+## 1.5.3 — 15 November 2026
+- Tidied the dependency lock file (npm's bookkeeping only). No change to the app itself.
+
 ## 1.5.2 — 15 November 2026
 - Xcode's package cache (`xcshareddata/swiftpm/`) is now ignored by git, so it no longer shows as a pending change. No change to the app itself.
 
