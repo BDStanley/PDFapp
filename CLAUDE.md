@@ -1,6 +1,6 @@
 # PDFapp
 
-A PDF viewer and editor for researchers, based on Uri Simonsohn's PDFacil: a Mac app (Electron, `main.js`) and an iPad and iPhone app (Capacitor, `ios/`), both from the code in `src/`. `APPS.md` in the private repository BDStanley/Renew (on the Mac, `~/Apps/Renew/APPS.md`) is the guide to all of Ben's apps and how they are installed, renewed and published.
+A PDF viewer and editor for researchers, based on Uri Simonsohn's PDFacil: a Mac app (Electron, `main.js`) and an iPad and iPhone app (Capacitor, `ios/`), both from the code in `src/`. `APPS.md` in the private repository BDStanley/App-maintenance (on the Mac, `~/Apps/_App maintenance/APPS.md`) is the guide to all of Ben's apps and how they are installed, renewed and published.
 
 ## Rules
 

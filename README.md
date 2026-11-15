@@ -160,6 +160,8 @@ A free Apple ID allows three apps at a time through AltStore, AltStore itself in
 
 Each renewal ends with a Mac notification saying whether it worked, and the details are in `~/Library/Logs/PDFapp-renew.log`. It needs the Mac logged in and the devices on the same Wi-Fi; if one cannot be reached, the other is still renewed. To switch it off, run `bash scripts/ipad-renew-setup.sh --remove`.
 
+With a paid Apple Developer account an install lasts a year, so the schedule isn't needed: run the set-up once to record the devices, then `--remove` to drop the schedule, and reinstall with `bash scripts/ipad-renew.sh` when you want a new version. (On Ben's Macs, the Updater menu-bar app does this for all his apps.)
+
 ## Installing on Windows
 
 To build PDFapp for Windows, you need [Node.js](https://nodejs.org/) 20 or newer:
