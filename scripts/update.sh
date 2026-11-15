@@ -5,7 +5,9 @@
 #      moved to ios/signing.xcconfig and Xcode's edit to the project file is undone, so `git pull` never
 #      refuses with "Your local changes ... would be overwritten".
 #   2. npm's own edits to package-lock.json are dropped for the same reason.
-#   3. It pulls, installs and opens Xcode.
+#   3. It pulls, installs and opens Xcode. It installs with `npm ci`, exactly what package-lock.json lists, which
+#      never rewrites that file (`npm install` would, differently with each Mac's npm version, and the edit would
+#      then block the next pull and commit); `npm install` only if package.json and the lock file disagree.
 # Run from the app's folder:  bash scripts/update.sh
 # (In a checkout that does not have this script yet:  git fetch && bash <(git show origin/main:scripts/update.sh))
 set -euo pipefail
@@ -39,7 +41,7 @@ fi
 git checkout -- package-lock.json 2>/dev/null || true
 
 git pull --ff-only
-npm install --no-audit --no-fund
+npm ci --no-audit --no-fund || npm install --no-audit --no-fund
 npm run ios:open
 echo
 echo "In Xcode: choose the iPad or iPhone at the top and press ▶. There is no need to choose a team any more."

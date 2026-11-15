@@ -33,7 +33,9 @@ if ! git pull --ff-only; then
   git checkout -- ios/App/App.xcodeproj/project.pbxproj package-lock.json 2>/dev/null || true
   git pull --ff-only || echo "Could not fetch the latest version; renewing the version already here."
 fi
-npm install --no-audit --no-fund || fail "npm install failed."
+# npm ci installs exactly what package-lock.json lists and never rewrites it, so the renewal leaves nothing to
+# commit; npm install only if package.json and the lock file disagree.
+npm ci --no-audit --no-fund || npm install --no-audit --no-fund || fail "npm install failed."
 node scripts/build-web.js || fail "Building the web part failed."
 npx cap sync ios || fail "Capacitor sync failed."
 

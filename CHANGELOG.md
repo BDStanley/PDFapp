@@ -2,6 +2,9 @@
 
 PDFapp's versions, newest first. The version is shown in the About box (File tab › About, or F1) on the Mac and on the iPad and iPhone. With every change: raise the version (the last number for a fix, the middle one for a new feature or a visible change) in `package.json` and the Xcode project, and add an entry here (see CLAUDE.md).
 
+## 1.5.4 — 15 November 2026
+- The update and renewal scripts (`scripts/update.sh`, `scripts/ipad-renew.sh`) install the packages with `npm ci`, which uses exactly the versions in `package-lock.json` and never rewrites it. Running them no longer leaves a changed lock file that blocks syncing between Macs. No change to the app itself.
+
 ## 1.5.3 — 15 November 2026
 - Tidied the dependency lock file (npm's bookkeeping only). No change to the app itself.
 
