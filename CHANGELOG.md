@@ -2,6 +2,10 @@
 
 PDFapp's versions, newest first. The version is shown in the About box (File tab › About, or F1) on the Mac and on the iPad and iPhone. With every change: raise the version (the last number for a fix, the middle one for a new feature or a visible change) in `package.json` and the Xcode project, and add an entry here (see CLAUDE.md).
 
+## 1.5.6 — 15 November 2026
+- Opening PDFapp in Xcode no longer changes the project file. Xcode had no signing team for its Release settings, so it wrote yours into the project, and that one-line change then stopped the commit script (and could block pulling the next update). Release now reads the team from `ios/signing.xcconfig`, as Debug always has, through a new `ios/release.xcconfig`.
+- No change to the app itself.
+
 ## 1.5.5 — 15 November 2026
 - The notification after installing on the iPad and iPhone no longer says PDFapp is "good for another 7 days". That was true when the app was signed with a free Apple ID; with the paid developer team an install lasts a year. The install script now reads the real date from the app it has just built ("signed until 15 November 2027") and says that in its log and its notification.
 - When Updater installs the app, the script sends no notification of its own, because Updater already says how the update went. Run by hand (`bash scripts/ipad-renew.sh`), it still notifies you, including when something fails.

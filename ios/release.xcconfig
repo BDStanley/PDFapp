@@ -1,0 +1,5 @@
+CAPACITOR_DEBUG = false
+
+// Your signing team, kept out of git (see debug.xcconfig). Release reads it too, so that Xcode always has a team
+// and never writes one into the project file (which would block committing and pulling).
+#include? "signing.xcconfig"
