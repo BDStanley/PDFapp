@@ -145,6 +145,9 @@
   };
   window.api = api;
   document.documentElement.classList.add('ios');
+  // iOS shows a control's pressed state (:active, which stands in for hover on a touch screen) only when
+  // something listens for touches.
+  document.addEventListener('touchstart', () => {}, { passive: true });
 
   // ------------------------------------------------------------------ touch
   // The app's own code is written for a mouse. On the iPad a tap already arrives as a click (and a
@@ -289,7 +292,9 @@
         const w = bubble.offsetWidth;
         const top = r.top - bubble.offsetHeight - 12;
         bubble.style.left = `${Math.max(8, Math.min(window.innerWidth - w - 8, r.left + r.width / 2 - w / 2))}px`;
-        bubble.style.top = `${top > 60 ? top : r.bottom + 12}px`;
+        // Above the selection, unless that would cover the bars at the top (the page starts below them).
+        const minTop = document.getElementById('viewer').getBoundingClientRect().top + 4;
+        bubble.style.top = `${top > minTop ? top : r.bottom + 12}px`;
       }, 250);
     });
     document.getElementById('viewer').addEventListener('scroll', () => (bubble.hidden = true), { passive: true });

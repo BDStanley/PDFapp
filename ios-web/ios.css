@@ -1,24 +1,36 @@
-/* PDFapp on the iPad: room for the status bar and the home indicator, touch-sized targets,
-   and nothing that only appears on hover. Loaded after styles.css. */
+/* PDFapp on the iPad and the iPhone: room for the status bar and the home indicator, the house style's
+   touch sizes (a 48px tab row, everything you tap at least 44px, text fields at 16px so iOS does not zoom),
+   and nothing that only appears on hover (styles.css keeps its hover effects inside @media (hover: hover)).
+   Loaded after styles.css. */
+html.ios { --tabrow-h: 38px; }
 html.ios, html.ios body { background: var(--brand); }
 html.ios body { -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-html.ios #tabrow { padding-top: env(safe-area-inset-top); height: calc(38px + env(safe-area-inset-top)); }
+html.ios #tabrow { padding-top: env(safe-area-inset-top); height: calc(var(--tabrow-h) + env(safe-area-inset-top)); }
 html.ios #tabrow .tab { padding: 8px 18px 9px; }
 html.ios #main { background: var(--bg); }
 html.ios #statusbar { padding-bottom: env(safe-area-inset-bottom); height: calc(32px + env(safe-area-inset-bottom)); }
-html.ios body.ribbon-collapsed.ribbon-peek #ribbon { top: calc(38px + env(safe-area-inset-top)); }
+/* The collapsed ribbon, shown for a moment over the page: right under the tab row, whatever its height. */
+html.ios body.ribbon-collapsed.ribbon-peek #ribbon { top: calc(var(--tabrow-h) + env(safe-area-inset-top)); }
+
+/* The accent, plum: selected text, and the ring round whatever has the keyboard's focus. Text fields keep
+   their own plum border when focused. The highlighter's yellow selection (styles.css) still wins. */
+html.ios ::selection { background: rgba(165, 44, 96, .22); }
+html.ios .textLayer br::selection { background: transparent; }
+html.ios :focus-visible:not(input, select, textarea) { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* On the red tab row plum cannot be seen: a focused tab gets a white ring inside it, the white active tab a plum one (APPS.md). */
+html.ios #tabrow :focus-visible:not(input, select, textarea) { outline: 2px solid #fff; outline-offset: -4px; }
+html.ios #tabrow .tab.active:focus-visible { outline-color: var(--accent); }
+/* Nothing dims the tab row (APPS.md): the dialogs and the busy overlay start below it. */
+html.ios #aboutDlg, html.ios .dlg, html.ios #busy { top: calc(var(--tabrow-h) + env(safe-area-inset-top)); }
 
 /* Things that have no meaning on the iPad. */
 html.ios [data-cmd=zoteroPickData], html.ios [data-cmd=zoteroPickBase] { display: none; }
 html.ios .zform .ios-hide { display: none; }
 
-/* Bigger targets. */
 html.ios .menu .mi { padding: 10px 14px; }
 html.ios .doctab { height: 34px; }
 html.ios .doctab .tclose { width: 28px; height: 28px; }
 html.ios .gcheck { width: 30px; height: 30px; opacity: 1; }
-html.ios .gcell:hover, html.ios .thumb:hover { background: transparent; }
-html.ios .gcell.selected:hover { background: var(--accent-tint); }
 
 /* Dragging annotations with a finger must not scroll the page. */
 html.ios .ann-text, html.ios .ann-note, html.ios .ann-text .rs { touch-action: none; }
@@ -44,18 +56,124 @@ html.ios #fsToggle { display: grid; place-items: center; align-self: center; bac
 html.ios #fsToggle svg { width: 18px; height: 18px; }
 html.ios body.nodoc #fsToggle { opacity: .45; }
 
-/* ---------- The iPhone (and a narrow iPad window) ----------
+/* ---------- A touch screen (the iPad and the iPhone) ----------
+   The tab row 48px high, and everything you tap at least 44px each way. Where a control has to look smaller
+   than that (a colour swatch, a comment's icon, the status bar's buttons), its tappable area still reaches
+   44px. Nothing changes on hover; a pressed state shows the tap instead. */
+@media (hover: none), (pointer: coarse) {
+  html.ios { --tabrow-h: 48px; }
+  html.ios input:not([type=range]):not([type=color]), html.ios select, html.ios textarea { font-size: 16px; }
+
+  /* The tab row, above anything whose tappable area reaches up to it. */
+  html.ios #tabrow { position: relative; z-index: 45; }
+  html.ios .qa { padding: 0 4px; gap: 0; }
+  html.ios .qa-btn, html.ios #ribbonToggle, html.ios #fsToggle { width: 44px; height: 44px; border-radius: 6px; }
+  html.ios .qa-btn svg, html.ios #ribbonToggle svg, html.ios #fsToggle svg { width: 20px; height: 20px; }
+  html.ios #tabrow .tab { min-height: 44px; min-width: 44px; padding: 0 18px; font-size: 15px; }
+  html.ios #tabrow .brand { font-size: 15px; }
+
+  /* The ribbon: the big buttons are already 48–66px. Fields 44px high; the colour swatches in a grid spaced
+     so that each one's 44px tappable square meets its neighbours' without overlapping them. When a tab does
+     not fit (a narrow iPad window), the ribbon scrolls sideways rather than squeezing its buttons. */
+  html.ios .panel.active { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+  html.ios .panel::-webkit-scrollbar { display: none; }
+  html.ios .group { flex-shrink: 0; }
+  html.ios .group.hint-group { flex-shrink: 1; }
+  html.ios #recentMenu { position: fixed; }   /* where it would be, but not cut off by the scrolling ribbon */
+  html.ios .goto input, html.ios select#textFont, html.ios select#textSize { height: 44px; }
+  html.ios .goto input { width: 48px; }
+  html.ios .stack { gap: 2px; }
+  html.ios .swatches, html.ios #hlSwatches, html.ios #txtSwatches, html.ios .fmt-colors {
+    display: grid; grid-template-columns: repeat(2, 28px); grid-auto-rows: 28px; gap: 16px; max-width: none; padding: 2px 12px 0; align-items: center;
+  }
+  html.ios .swatch { position: relative; width: 28px; height: 28px; }
+  html.ios .swatch::after, html.ios .gcheck::before, html.ios .ann-note::after, html.ios .ann-text .rs::after { content: ''; position: absolute; }
+  html.ios .swatch::after { inset: -10px; }
+
+  /* The document tabs. */
+  html.ios #tabbar { height: 48px; }
+  html.ios .doctab { height: 44px; padding-right: 0; }
+  html.ios .doctab .tclose { width: 44px; height: 44px; font-size: 13px; }
+  html.ios #tabAdd { width: 44px; height: 44px; margin-bottom: 2px; font-size: 22px; }
+
+  /* The status bar stays thin: its buttons and fields reach 13px up over the page, to be 44px high, and
+     never below the bar, so the page itself cannot scroll. The page field's transparent border is part of
+     what you tap, round a 26px box that looks like the other fields. */
+  html.ios #statusbar { position: relative; z-index: 40; }
+  html.ios #statusbar .right button { width: 44px; height: 44px; margin-top: -13px; padding: 13px 0 0; font-size: 18px; }
+  html.ios #zoomSlider { height: 44px; margin: -13px 0 0; padding-top: 13px; }
+  html.ios #pageInput {
+    width: 60px; height: 44px; margin-top: -13px; padding: 0 4px; border: solid transparent; border-width: 16px 4px 2px; border-radius: 7px;
+    background: #fff padding-box; box-shadow: inset 0 0 0 1px var(--border);
+  }
+  html.ios #pageInput:focus { border-color: transparent !important; box-shadow: inset 0 0 0 1px var(--accent), inset 0 0 0 3px var(--accent-tint); }
+
+  /* Menus, the search bar, the selection bar and full screen. A menu or dialog taller than the screen (a
+     phone on its side) scrolls rather than running off it. */
+  html.ios .menu .mi { min-height: 44px; padding: 0 14px; }
+  html.ios #ctxMenu, html.ios .dlg-card, html.ios .about-card { max-height: calc(100dvh - 8px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow-y: auto; }
+  html.ios #searchInput { height: 44px; }
+  html.ios #searchbar button { width: 44px; height: 44px; }
+  html.ios #selBubble button { min-height: 44px; padding: 0 16px; }
+  html.ios body.fullscreen #fsExit { width: 44px; height: 44px; }
+
+  /* The text box's font, size and colour, in its long-press menu. */
+  html.ios .fmt-font, html.ios .fmt-size { height: 44px; }
+  html.ios .fmt-step { min-width: 44px; height: 44px; font-size: 13px; }
+  html.ios .fmt-colors { grid-template-columns: repeat(4, 28px); padding: 8px; }
+  html.ios .fmt-custom { width: 44px; height: 44px; padding: 8px; margin: -8px; border: 0; }
+
+  /* On the page: a comment's icon, a text box's resize handle, the Page Grid's circles, a comment's pop-up. */
+  html.ios .ann-note::after { inset: -11px; }
+  html.ios .ann-text .rs::after { inset: -8px -15px; }
+  html.ios .gcheck::before { inset: -9px; }
+  html.ios .note-pop .nh button { width: 44px; height: 44px; padding: 0; font-size: 16px; }
+
+  /* The outline. */
+  html.ios .ol-head { padding: 0 0 0 12px; min-height: 44px; }
+  html.ios .ol-head button { width: 44px; height: 44px; }
+  html.ios .ol-row { min-height: 44px; align-items: center; padding-top: 0; padding-bottom: 0; }
+  html.ios .ol-tw { width: 44px; align-self: stretch; display: grid; place-items: center; padding-top: 0; font-size: 12px; }
+
+  /* The start screen, the Page Grid's bar and the dialogs. */
+  html.ios .primary-btn { min-height: 44px; }
+  html.ios #recentTable td { height: 44px; padding-top: 0; padding-bottom: 0; }
+  html.ios .gbar button { min-height: 44px; }
+  html.ios .gbar .gsize input { height: 44px; margin: 0; }
+  html.ios .dlg-buttons button, html.ios #aboutDlg .primary { min-height: 44px; }
+  html.ios .about-x { width: 44px; height: 44px; top: 4px; right: 4px; }
+  html.ios #mergeList li { padding-top: 0; padding-bottom: 0; }
+  html.ios #mergeList button { width: 44px; height: 44px; padding: 13px; }
+  html.ios .zbar select, html.ios .zbar input, html.ios .zform input { min-height: 44px; }
+  html.ios #zColls li { padding: 0 12px; line-height: 44px; }
+  html.ios #zItems li { min-height: 44px; padding: 12px; }
+  html.ios #zItems .zpdfs li { padding: 0 10px; line-height: 44px; }
+  html.ios #zMore { min-height: 44px; }
+  html.ios .zhelp a { display: inline-block; padding: 12px 0; line-height: 22px; }
+
+  /* Pressed, in place of hover. */
+  html.ios .qa-btn:active:not(:disabled), html.ios #ribbonToggle:active, html.ios #fsToggle:active, html.ios #tabrow .tab:not(.active):active { background: rgba(255,255,255,.18); }
+  html.ios button.big:active:not(:disabled) { background: var(--hover); border-color: var(--border); }
+  html.ios .menu .mi:active, html.ios .thumb:active, html.ios .ol-row:active, html.ios #zColls li:active, html.ios #zItems li:active,
+  html.ios #searchbar button:active, html.ios #statusbar .right button:active, html.ios .about-x:active, html.ios .fmt-step:active,
+  html.ios .gbar button:not(.primary):active, html.ios .dlg-buttons button:not(.primary):active, html.ios #mergeList button:active:not(:disabled),
+  html.ios .ol-head button:active, html.ios #tabAdd:active, html.ios .doctab .tclose:active { background: var(--hover); }
+  html.ios #recentTable tbody tr:active td { background: var(--brand-tint); }
+  html.ios .primary-btn:active, html.ios .gbar button.primary:active, html.ios .dlg-buttons button.primary:active, html.ios #aboutDlg .primary:active { background: var(--brand-dark); }
+}
+
+/* ---------- The iPhone (and a narrow iPad window): below 700px wide, or less than 500px high ----------
    One row of tabs, the ribbon as a single strip of small buttons that scrolls sideways, no group labels,
-   thumbnails off at first and narrower, the outline over the page, and less padding around the pages. */
-@media (max-width: 600px), (max-height: 500px) {
+   thumbnails off at first and narrower, the outline over the page, and less padding around the pages.
+   app.js uses the same breakpoint to start with the thumbnails hidden. */
+@media (max-width: 699px), (max-height: 500px) {
   html.ios #tabrow .brand { display: none; }
   html.ios .qa { padding: 0 2px; gap: 0; }
-  html.ios .qa-btn { width: 30px; height: 30px; }
   html.ios #tabs { flex: 1; min-width: 0; padding-left: 2px; gap: 0; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
   html.ios #tabs::-webkit-scrollbar { display: none; }
-  html.ios #tabrow .tab { flex: none; padding: 8px 8px 9px; font-size: 13px; }
-  html.ios #ribbonToggle { margin-left: 0; width: 32px; flex: none; }
-  html.ios #fsToggle { width: 32px; flex: none; }
+  html.ios #tabrow .tab { flex: none; padding: 0 10px; font-size: 14px; }
+  html.ios #ribbonToggle { margin-left: 0; flex: none; }
+  html.ios #fsToggle { flex: none; }
 
   html.ios .panel.active { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; min-height: 0; padding: 2px 2px 1px; }
   html.ios .panel::-webkit-scrollbar { display: none; }
@@ -65,11 +183,10 @@ html.ios body.nodoc #fsToggle { opacity: .45; }
     min-width: 46px; width: auto; height: 48px; padding: 4px 4px 2px; font-size: 10.5px; line-height: 1.1; white-space: nowrap; gap: 2px;
   }
   html.ios button.big svg { width: 21px; height: 21px; }
-  html.ios .stack { padding: 2px 2px 0; gap: 2px; }
-  html.ios .small-label { font-size: 10px; }
-  html.ios .swatches, html.ios #hlSwatches, html.ios #txtSwatches { padding-top: 3px; gap: 3px; max-width: 46px; }
-  html.ios .swatch { width: 19px; height: 19px; }
-  html.ios body.ribbon-collapsed.ribbon-peek #ribbon { top: calc(38px + env(safe-area-inset-top)); }
+  /* The fields sit beside their labels, so the strip stays one button high; the swatches in one row. */
+  html.ios .stack { flex-direction: row; align-items: center; padding: 0 4px; gap: 6px; }
+  html.ios .small-label { font-size: 11px; white-space: nowrap; }
+  html.ios .swatches, html.ios #hlSwatches, html.ios #txtSwatches { grid-template-columns: repeat(4, 28px); padding: 10px 8px 0; }
 
   html.ios #main { position: relative; }
   html.ios #sidebar { width: 104px; }
@@ -78,8 +195,12 @@ html.ios body.nodoc #fsToggle { opacity: .45; }
   html.ios #pages { padding: 8px 4px 32px; gap: 8px; }
   html.ios .doctab { min-width: 90px; max-width: 180px; }
 
+  html.ios #recentMenu { left: 8px; right: 8px; min-width: 0; }
   html.ios #zoomSlider { display: none; }
   html.ios #statusbar .center { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 0 6px; }
+  html.ios #searchbar { left: 8px; right: 8px; top: 8px; }
+  html.ios #searchInput { flex: 1; min-width: 0; width: auto; }
+  html.ios #searchCount { min-width: 0; }
 
   /* The start screen: one column, the button above the recent files. */
   html.ios #welcome { padding: 10px; }

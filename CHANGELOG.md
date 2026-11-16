@@ -2,6 +2,16 @@
 
 PDFapp's versions, newest first. The version is shown in the About box (File tab › About, or F1) on the Mac and on the iPad and iPhone. With every change: raise the version (the last number for a fix, the middle one for a new feature or a visible change) in `package.json` and the Xcode project, and add an entry here (see CLAUDE.md).
 
+## 1.6.0 — 16 November 2026
+- The iPad and iPhone app now follows the house style's rules for touch screens, like your other apps. The red tab row is 48 points high, and everything you tap is at least 44 points each way: the tabs, undo and redo, the document tabs and their close buttons, the fields and lists in the ribbon, the menus, the search bar, the outline, the Page Grid's bar and the dialogs' buttons. The colour swatches sit in a 2 × 2 grid on the iPad (one row on the iPhone), spaced so each is easy to hit; small things such as a comment's icon, the Page Grid's circles and the status bar's zoom buttons keep their size but take a tap from a 44-point area round them. The status bar stays thin.
+- Text fields use 16-point type, so iOS no longer zooms in when you tap one.
+- Nothing changes when a finger rests on a button: hover effects now appear only where there is a mouse or trackpad (on the Mac, as before). A tapped button shows a pressed state instead.
+- Selected text and the ring round whatever has the keyboard's focus are in the plum accent.
+- The iPhone layout now applies to every screen or window under 700 points wide (it was 600), so an iPad window in Split View gets it sooner. When a ribbon tab is too wide for a narrow iPad window, the ribbon scrolls sideways rather than squeezing its buttons. On the iPhone, the File tab's Recent menu now opens instead of being hidden behind the ribbon, and menus and dialogs taller than the screen (an iPhone on its side) scroll.
+- The bar over selected text no longer covers the tab row or the ribbon.
+- The Mac app looks and works exactly as before.
+- Dialogs and the busy screen now open below the red tab row instead of dimming it, and a tab you reach with the keyboard shows a white ring inside it (plum on the white, open tab), as in the other apps.
+
 ## 1.5.6 — 15 November 2026
 - Opening PDFapp in Xcode no longer changes the project file. Xcode had no signing team for its Release settings, so it wrote yours into the project, and that one-line change then stopped the commit script (and could block pulling the next update). Release now reads the team from `ios/signing.xcconfig`, as Debug always has, through a new `ios/release.xcconfig`.
 - No change to the app itself.

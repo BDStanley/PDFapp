@@ -3510,7 +3510,7 @@ for (const which of ['thumbs', 'outline']) {
   } catch {}
   if (v !== null) setPanel(which, v === '1');
   // On a phone the thumbnails would take half the screen, so they start hidden there.
-  else if (which === 'thumbs' && IS_TOUCH && matchMedia('(max-width: 600px), (max-height: 500px)').matches) setPanel('thumbs', false);
+  else if (which === 'thumbs' && IS_TOUCH && matchMedia('(max-width: 699px), (max-height: 500px)').matches) setPanel('thumbs', false);
 }
 
 document.body.classList.add('nodoc', 'tool-select');
